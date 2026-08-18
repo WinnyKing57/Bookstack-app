@@ -1,6 +1,6 @@
-# WinBook-Stack : BookStack Companion
+# BookStack Companion
 
-**WinBook-Stack** est un client Android natif modern pour accéder et consulter vos instances [BookStack](https://www.bookstackapp.com/) auto-hébergées.
+**BookStack Companion** est un client Android natif moderne pour accéder et consulter vos instances [BookStack](https://www.bookstackapp.com/) auto-hébergées.
 
 Développé par **WinnyKing** ([winnyking.cloud](https://winnyking.cloud)).
 
@@ -42,7 +42,7 @@ Pour connecter l'application à votre instance BookStack :
 1. Connectez-vous à votre instance BookStack.
 2. Allez dans votre **Profil** ➔ **Edit Profile** ➔ section **API Tokens**.
 3. Cliquez sur **Add API Token**.
-4. Donnez un nom (ex: `WinBook-Stack App`).
+4. Donnez un nom (ex: `BookStack Companion App`).
 5. Copiez soigneusement le **Token ID** et le **Token Secret** générés.
 
 ---
@@ -78,4 +78,4 @@ L'APK généré se trouvera dans :
 
 - **Développeur** : WinnyKing
 - **Site Web** : [winnyking.cloud](https://winnyking.cloud)
-- **Projet** : WinBook-Stack (BookStack Companion)
+- **Projet** : BookStack Companion

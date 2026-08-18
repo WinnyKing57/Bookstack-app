@@ -1,6 +1,7 @@
 package com.winnyking.bookstackcompanion.data.repository
 
 import com.winnyking.bookstackcompanion.data.api.DynamicApiClientFactory
+import com.winnyking.bookstackcompanion.data.api.UrlSanitizer
 import com.winnyking.bookstackcompanion.data.database.dao.BookDao
 import com.winnyking.bookstackcompanion.data.database.dao.ChapterDao
 import com.winnyking.bookstackcompanion.data.database.dao.FavoriteDao
@@ -48,10 +49,10 @@ class ServerRepositoryImpl @Inject constructor(
         tokenSecret: String
     ): Result<ServerConfig> {
         return try {
-            val sanitizedUrl = if (baseUrl.endsWith("/")) baseUrl.dropLast(1) else baseUrl
-            val isValid = testServerConnection(sanitizedUrl, tokenId, tokenSecret)
-            if (!isValid) {
-                return Result.failure(Exception("Impossible de se connecter au serveur BookStack. Vérifiez l'URL et les identifiants."))
+            val sanitizedUrl = UrlSanitizer.sanitizeBaseUrl(baseUrl)
+            val testResult = testServerConnectionResult(sanitizedUrl, tokenId, tokenSecret)
+            if (testResult.isFailure) {
+                return Result.failure(testResult.exceptionOrNull() ?: Exception("Impossible de se connecter au serveur BookStack."))
             }
 
             val serverId = UUID.randomUUID().toString()
@@ -93,6 +94,14 @@ class ServerRepositoryImpl @Inject constructor(
         tokenId: String,
         tokenSecret: String
     ): Boolean {
+        return testServerConnectionResult(baseUrl, tokenId, tokenSecret).isSuccess
+    }
+
+    override suspend fun testServerConnectionResult(
+        baseUrl: String,
+        tokenId: String,
+        tokenSecret: String
+    ): Result<Unit> {
         return apiClientFactory.testConnection(baseUrl, tokenId, tokenSecret)
     }
 

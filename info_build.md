@@ -1,6 +1,6 @@
-# Guide de Compilation et Build APK sur Linux — WinBook-Stack (v1.1.0)
+# Guide de Compilation et Build APK sur Linux — BookStack Companion (v1.1.0)
 
-Ce document détaille la procédure complète pour compiler et générer les fichiers **APK** (Debug et Release) ou **AAB** (Android App Bundle) pour l'application Android **WinBook-Stack** sous un environnement Linux.
+Ce document détaille la procédure complète pour compiler et générer les fichiers **APK** (Debug et Release) ou **AAB** (Android App Bundle) pour l'application Android **BookStack Companion** sous un environnement Linux.
 
 ---
 
@@ -82,7 +82,7 @@ Par défaut, `./gradlew assembleRelease` génère un APK **non signé** (`app-re
 
 ### Étape 1 : Créer une clé de signature (Keystore) *(Si non existante)*
 ```bash
-keytool -genkey -v -keystore release-key.jks -keyalg RSA -keysize 2048 -validity 10000 -alias winbook-alias
+keytool -genkey -v -keystore release-key.jks -keyalg RSA -keysize 2048 -validity 10000 -alias bookstack-companion-alias
 ```
 
 ### Étape 2 : Aligner l'APK avec `zipalign`
