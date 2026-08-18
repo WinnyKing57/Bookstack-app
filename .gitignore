@@ -9,5 +9,5 @@
 .externalNativeBuild
 .cxx
 /auto-testing/
-#*.apk
-#*.ap_
+*.apk
+*.ap_
