@@ -1,0 +1,102 @@
+package com.winnyking.bookstackcompanion.data.repository
+
+import com.winnyking.bookstackcompanion.data.api.DynamicApiClientFactory
+import com.winnyking.bookstackcompanion.data.database.dao.ServerDao
+import com.winnyking.bookstackcompanion.data.database.entity.ServerEntity
+import com.winnyking.bookstackcompanion.data.security.SecureStorageManager
+import com.winnyking.bookstackcompanion.domain.model.ServerConfig
+import com.winnyking.bookstackcompanion.domain.repository.ServerRepository
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import java.util.UUID
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class ServerRepositoryImpl @Inject constructor(
+    private val serverDao: ServerDao,
+    private val secureStorageManager: SecureStorageManager,
+    private val apiClientFactory: DynamicApiClientFactory
+) : ServerRepository {
+
+    override fun getAllServers(): Flow<List<ServerConfig>> {
+        return serverDao.getAllServers().map { entities ->
+            entities.map { it.toDomainModel() }
+        }
+    }
+
+    override fun getSelectedServer(): Flow<ServerConfig?> {
+        return serverDao.getSelectedServer().map { entity ->
+            entity?.toDomainModel()
+        }
+    }
+
+    override suspend fun saveServer(
+        name: String,
+        baseUrl: String,
+        tokenId: String,
+        tokenSecret: String
+    ): Result<ServerConfig> {
+        return try {
+            val sanitizedUrl = if (baseUrl.endsWith("/")) baseUrl.dropLast(1) else baseUrl
+            val isValid = testServerConnection(sanitizedUrl, tokenId, tokenSecret)
+            if (!isValid) {
+                return Result.failure(Exception("Impossible de se connecter au serveur BookStack. Vérifiez l'URL et les identifiants."))
+            }
+
+            val serverId = UUID.randomUUID().toString()
+            secureStorageManager.saveServerCredentials(serverId, tokenId, tokenSecret)
+
+            val serverEntity = ServerEntity(
+                id = serverId,
+                name = name,
+                baseUrl = sanitizedUrl,
+                isSelected = true,
+                lastSyncTimestamp = System.currentTimeMillis()
+            )
+
+            serverDao.insertServer(serverEntity)
+            serverDao.setSelectedServer(serverId)
+
+            Result.success(serverEntity.toDomainModel())
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun selectServer(serverId: String) {
+        serverDao.setSelectedServer(serverId)
+    }
+
+    override suspend fun deleteServer(serverId: String) {
+        secureStorageManager.deleteServerCredentials(serverId)
+        serverDao.deleteServer(serverId)
+    }
+
+    override suspend fun testServerConnection(
+        baseUrl: String,
+        tokenId: String,
+        tokenSecret: String
+    ): Boolean {
+        return apiClientFactory.testConnection(baseUrl, tokenId, tokenSecret)
+    }
+
+    override suspend fun updateLastSyncTimestamp(serverId: String, timestamp: Long) {
+        val existing = serverDao.getServerById(serverId)
+        if (existing != null) {
+            serverDao.insertServer(existing.copy(lastSyncTimestamp = timestamp))
+        }
+    }
+
+    private fun ServerEntity.toDomainModel(): ServerConfig {
+        return ServerConfig(
+            id = id,
+            name = name,
+            baseUrl = baseUrl,
+            tokenId = secureStorageManager.getTokenId(id),
+            tokenSecret = secureStorageManager.getTokenSecret(id),
+            isSelected = isSelected,
+            lastSyncTimestamp = lastSyncTimestamp
+        )
+    }
+}
