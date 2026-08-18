@@ -17,6 +17,7 @@ interface ServerRepository {
     suspend fun selectServer(serverId: String)
     suspend fun deleteServer(serverId: String)
     suspend fun testServerConnection(baseUrl: String, tokenId: String, tokenSecret: String): Boolean
+    suspend fun testServerConnectionResult(baseUrl: String, tokenId: String, tokenSecret: String): Result<Unit>
     suspend fun updateLastSyncTimestamp(serverId: String, timestamp: Long)
 }
 

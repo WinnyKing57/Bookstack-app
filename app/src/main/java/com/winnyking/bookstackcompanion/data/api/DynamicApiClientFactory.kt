@@ -25,14 +25,16 @@ class DynamicApiClientFactory @Inject constructor(
     private val clientCache = ConcurrentHashMap<String, BookStackApi>()
 
     fun createApi(baseUrl: String, serverId: String): BookStackApi {
-        val cacheKey = "$serverId:$baseUrl"
+        val sanitizedBase = UrlSanitizer.sanitizeBaseUrl(baseUrl)
+        val cacheKey = "$serverId:$sanitizedBase"
         return clientCache.getOrPut(cacheKey) {
-            createApiInternal(baseUrl, serverId)
+            createApiInternal(sanitizedBase, serverId)
         }
     }
 
     private fun createApiInternal(baseUrl: String, serverId: String): BookStackApi {
-        val sanitizedBaseUrl = if (baseUrl.endsWith("/")) baseUrl else "$baseUrl/"
+        val sanitizedBase = UrlSanitizer.sanitizeBaseUrl(baseUrl)
+        val formattedBaseUrl = "$sanitizedBase/"
 
         val loggingInterceptor = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
@@ -54,15 +56,19 @@ class DynamicApiClientFactory @Inject constructor(
         val contentType = "application/json".toMediaType()
 
         return Retrofit.Builder()
-            .baseUrl(sanitizedBaseUrl)
+            .baseUrl(formattedBaseUrl)
             .client(okHttpClient)
             .addConverterFactory(json.asConverterFactory(contentType))
             .build()
             .create(BookStackApi::class.java)
     }
 
-    suspend fun testConnection(baseUrl: String, tokenId: String, tokenSecret: String): Boolean {
-        val sanitizedBaseUrl = if (baseUrl.endsWith("/")) baseUrl else "$baseUrl/"
+    suspend fun testConnection(baseUrl: String, tokenId: String, tokenSecret: String): Result<Unit> {
+        val sanitizedBase = UrlSanitizer.sanitizeBaseUrl(baseUrl)
+        if (sanitizedBase.isBlank()) {
+            return Result.failure(IllegalArgumentException("L'URL saisie est vide ou invalide."))
+        }
+        val formattedBaseUrl = "$sanitizedBase/"
         val contentType = "application/json".toMediaType()
 
         val okHttpClient = OkHttpClient.Builder()
@@ -77,7 +83,7 @@ class DynamicApiClientFactory @Inject constructor(
             .build()
 
         val api = Retrofit.Builder()
-            .baseUrl(sanitizedBaseUrl)
+            .baseUrl(formattedBaseUrl)
             .client(okHttpClient)
             .addConverterFactory(json.asConverterFactory(contentType))
             .build()
@@ -85,9 +91,10 @@ class DynamicApiClientFactory @Inject constructor(
 
         return try {
             api.getBooks(count = 1)
-            true
+            Result.success(Unit)
         } catch (e: Exception) {
-            false
+            val formattedMsg = UrlSanitizer.formatErrorMessage(sanitizedBase, e)
+            Result.failure(Exception(formattedMsg, e))
         }
     }
 

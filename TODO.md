@@ -1,4 +1,4 @@
-# 📋 Feuille de Route & Tâches à Faire (WinBook-Stack v1.2.0+)
+# 📋 Feuille de Route & Tâches à Faire (BookStack Companion v1.2.0+)
 
 ## 🎯 Prochaines Étapes Immédiates (Release v1.1.0)
 - [ ] Générer l'APK Release final (`./gradlew assembleRelease`)

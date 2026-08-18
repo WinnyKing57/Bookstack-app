@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">WinBook-Stack</string>
+    <string name="app_name">BookStack Companion</string>
 
     <!-- Navigation -->
     <string name="nav_server_connect">Connexion Serveur</string>
@@ -19,6 +19,10 @@
     <string name="server_url_label">URL du serveur (https://bookstack.example.com)</string>
     <string name="server_token_id_label">Token ID</string>
     <string name="server_token_secret_label">Token Secret</string>
+    <string name="allow_http_label">Autoriser les connexions HTTP (non sécurisées)</string>
+    <string name="http_warning_title">Avertissement de sécurité HTTP</string>
+    <string name="http_warning_message">Les connexions HTTP transitent en clair sur le réseau et ne sont pas chiffrées. Êtes-vous sûr de vouloir autoriser les connexions HTTP pour ce serveur ?</string>
+    <string name="http_not_allowed_error">L\'URL saisie utilise le protocole HTTP. Veuillez cocher la case « Autoriser les connexions HTTP » pour poursuivre la connexion.</string>
     <string name="server_connect_test">Tester la connexion</string>
     <string name="server_connect_save">Enregistrer</string>
     <string name="server_connect_success">Connexion réussie !</string>
@@ -100,7 +104,7 @@
     <string name="settings_clear_cache">Vider le cache</string>
     <string name="settings_sync_never">Jamais</string>
     <string name="settings_about_section">À propos</string>
-    <string name="settings_version">WinBook-Stack v%1$s</string>
+    <string name="settings_version">BookStack Companion v%1$s</string>
     <string name="settings_developer">Développeur : WinnyKing</string>
     <string name="settings_website">Site web : winnyking.cloud</string>
 
