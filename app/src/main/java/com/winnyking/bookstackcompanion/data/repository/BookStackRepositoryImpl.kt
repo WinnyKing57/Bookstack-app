@@ -238,7 +238,11 @@ class BookStackRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun downloadBookForOffline(serverId: String, bookId: Long): Result<Unit> {
+    override suspend fun downloadBookForOffline(
+        serverId: String,
+        bookId: Long,
+        onProgress: ((completed: Int, total: Int) -> Unit)?
+    ): Result<Unit> {
         return try {
             val api = getApiForServer(serverId)
             val bookDto = api.getBookDetail(bookId)
@@ -252,7 +256,14 @@ class BookStackRepositoryImpl @Inject constructor(
                 }
             }
 
-            pageIdsToFetch.forEach { pageId ->
+            val total = pageIdsToFetch.size
+            if (total == 0) {
+                bookDao.updateBookDownloadState(serverId, bookId, true)
+                return Result.success(Unit)
+            }
+
+            pageIdsToFetch.forEachIndexed { index, pageId ->
+                onProgress?.invoke(index, total)
                 val pageDto = api.getPageDetail(pageId)
                 val pageEntity = PageEntity(
                     id = pageDto.id,
@@ -267,6 +278,7 @@ class BookStackRepositoryImpl @Inject constructor(
                 )
                 pageDao.insertPages(listOf(pageEntity))
             }
+            onProgress?.invoke(total, total)
 
             bookDao.updateBookDownloadState(serverId, bookId, true)
             Result.success(Unit)
@@ -326,6 +338,15 @@ class BookStackRepositoryImpl @Inject constructor(
 
     override fun getCachedPagesCount(serverId: String): Flow<Int> {
         return pageDao.getCachedPagesCount(serverId)
+    }
+
+    override fun getCachedPagesTotalBytes(serverId: String): Flow<Long> {
+        return pageDao.getCachedPagesTotalBytes(serverId).map { it ?: 0L }
+    }
+
+    override suspend fun deleteBookOfflineCache(serverId: String, bookId: Long) {
+        pageDao.deleteBookPages(serverId, bookId)
+        bookDao.updateBookDownloadState(serverId, bookId, false)
     }
 
     override suspend fun clearCache(serverId: String) {

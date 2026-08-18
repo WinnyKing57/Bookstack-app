@@ -5,10 +5,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -35,15 +39,17 @@ fun AppNavigation(
     val currentRoute = navBackStackEntry?.destination?.route
 
     val showBottomBar = bottomNavItems.any { it.route == currentRoute }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             if (showBottomBar) {
                 NavigationBar {
                     bottomNavItems.forEach { screen ->
                         NavigationBarItem(
-                            icon = { Icon(screen.icon!!, contentDescription = screen.title) },
-                            label = { Text(screen.title) },
+                            icon = { Icon(screen.icon!!, contentDescription = null) },
+                            label = { Text(stringResource(screen.titleResId)) },
                             selected = currentRoute == screen.route,
                             onClick = {
                                 navController.navigate(screen.route) {

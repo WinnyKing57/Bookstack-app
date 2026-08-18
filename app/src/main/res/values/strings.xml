@@ -1,3 +1,143 @@
 <resources>
     <string name="app_name">WinBook-Stack</string>
+
+    <!-- Navigation -->
+    <string name="nav_server_connect">Connexion Serveur</string>
+    <string name="nav_dashboard">Tableau de bord</string>
+    <string name="nav_books">Livres</string>
+    <string name="nav_shelves">Étagères</string>
+    <string name="nav_search">Recherche</string>
+    <string name="nav_favorites">Favoris</string>
+    <string name="nav_settings">Paramètres</string>
+    <string name="nav_book_detail">Détail du livre</string>
+    <string name="nav_page_reader">Lecture de page</string>
+
+    <!-- Server Connect Screen -->
+    <string name="server_connect_title">Connecter un serveur BookStack</string>
+    <string name="server_connect_description">Entrez les coordonnées de votre instance BookStack pour vous connecter.</string>
+    <string name="server_name_label">Nom du serveur (ex: Mon BookStack)</string>
+    <string name="server_url_label">URL du serveur (https://bookstack.example.com)</string>
+    <string name="server_token_id_label">Token ID</string>
+    <string name="server_token_secret_label">Token Secret</string>
+    <string name="server_connect_test">Tester la connexion</string>
+    <string name="server_connect_save">Enregistrer</string>
+    <string name="server_connect_success">Connexion réussie !</string>
+    <string name="server_connect_error">Impossible de se connecter au serveur BookStack. Vérifiez l\'URL et vos jetons d\'API.</string>
+    <string name="server_save_error">Erreur de sauvegarde</string>
+
+    <!-- Dashboard Screen -->
+    <string name="dashboard_quick_access">Accès rapide</string>
+    <string name="dashboard_books">Livres</string>
+    <string name="dashboard_shelves">Étagères</string>
+    <string name="dashboard_search">Recherche</string>
+    <string name="dashboard_favorites">Favoris</string>
+    <string name="dashboard_recent_pages">Pages récentes</string>
+    <string name="dashboard_preview_books">Aperçu des Livres</string>
+    <string name="dashboard_direct_page">Page directe</string>
+    <string name="dashboard_sync">Synchroniser</string>
+    <string name="dashboard_no_server">Aucun serveur</string>
+
+    <!-- Books Screen -->
+    <string name="books_title">Livres</string>
+    <string name="books_search_placeholder">Rechercher un livre…</string>
+    <string name="books_empty">Aucun livre disponible</string>
+    <string name="books_no_results">Aucun résultat trouvé</string>
+    <string name="books_download">Télécharger pour hors-ligne</string>
+    <string name="books_downloaded">Téléchargé</string>
+
+    <!-- Book Detail Screen -->
+    <string name="book_detail_title">Détail du Livre</string>
+    <string name="book_detail_offline_available">Disponible Hors-ligne (Re-télécharger)</string>
+    <string name="book_detail_download_full">Télécharger le livre complet hors-ligne</string>
+    <string name="book_detail_chapters">Chapitres</string>
+    <string name="book_detail_direct_pages">Pages Directes</string>
+
+    <!-- Page Reader Screen -->
+    <string name="page_reader_title">Lecture</string>
+    <string name="page_reader_no_content">Aucun contenu disponible</string>
+    <string name="page_reader_font_size">Taille du texte</string>
+    <string name="page_reader_favorite">Favori</string>
+    <string name="page_reader_refresh">Rafraîchir</string>
+    <string name="page_reader_back">Retour</string>
+    <string name="page_reader_book_label">Livre</string>
+
+    <!-- Shelves Screen -->
+    <string name="shelves_title">Étagères</string>
+    <string name="shelves_empty">Aucune étagère disponible</string>
+
+    <!-- Search Screen -->
+    <string name="search_title">Recherche Globale</string>
+    <string name="search_placeholder">Rechercher dans tout BookStack…</string>
+    <string name="search_no_results">Aucun résultat pour \"%1$s\"</string>
+    <string name="search_type_label">Type : %1$s</string>
+
+    <!-- Favorites Screen -->
+    <string name="favorites_title">Pages Favorites</string>
+    <string name="favorites_empty">Aucune page en favoris pour ce serveur</string>
+    <string name="favorites_remove">Supprimer des favoris</string>
+    <string name="favorites_direct_page">Page directe</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_title">Paramètres</string>
+    <string name="settings_servers_section">Serveurs BookStack</string>
+    <string name="settings_add_server">Ajouter un serveur</string>
+    <string name="settings_delete_server">Supprimer</string>
+    <string name="settings_appearance_section">Apparence &amp; Thème</string>
+    <string name="settings_theme_system">Système</string>
+    <string name="settings_theme_light">Clair</string>
+    <string name="settings_theme_dark">Sombre</string>
+    <string name="settings_font_section">Taille du texte</string>
+    <string name="settings_font_small">Petit</string>
+    <string name="settings_font_normal">Normal</string>
+    <string name="settings_font_large">Grand</string>
+    <string name="settings_history_section">Historique</string>
+    <string name="settings_history_limit">Limite de l\'historique</string>
+    <string name="settings_history_limit_value">%1$d pages</string>
+    <string name="settings_cache_section">Cache &amp; Synchronisation</string>
+    <string name="settings_cached_pages">Pages en cache : %1$d</string>
+    <string name="settings_last_sync">Dernière synchro : %1$s</string>
+    <string name="settings_sync_now">Synchroniser</string>
+    <string name="settings_clear_cache">Vider le cache</string>
+    <string name="settings_sync_never">Jamais</string>
+    <string name="settings_about_section">À propos</string>
+    <string name="settings_version">WinBook-Stack v%1$s</string>
+    <string name="settings_developer">Développeur : WinnyKing</string>
+    <string name="settings_website">Site web : winnyking.cloud</string>
+
+    <!-- Offline Banner -->
+    <string name="offline_banner">Mode hors ligne - Données du cache local</string>
+
+    <!-- Server Selector -->
+    <string name="server_selector_no_server">Aucun serveur</string>
+    <string name="server_selector_change">Changer de serveur</string>
+    <string name="server_selector_add">+ Ajouter un serveur</string>
+
+    <!-- Confirmation Dialogs -->
+    <string name="delete_server_dialog_title">Supprimer le serveur</string>
+    <string name="delete_server_dialog_message">Voulez-vous vraiment supprimer le serveur « %1$s » ?</string>
+    <string name="clear_cache_dialog_title">Vider le cache</string>
+    <string name="clear_cache_dialog_message">Voulez-vous vraiment supprimer toutes les pages enregistrées en cache ?</string>
+    <string name="confirm_delete">Supprimer</string>
+    <string name="confirm_clear">Vider</string>
+    <string name="cancel">Annuler</string>
+
+    <!-- Download Progress -->
+    <string name="download_progress">Téléchargement… %1$d%%</string>
+    <string name="download_progress_items">Téléchargement… %1$d / %2$d pages (%3$d%%)</string>
+
+    <!-- Empty States -->
+    <string name="dashboard_empty_books">Aucun livre disponible sur ce serveur</string>
+    <string name="dashboard_empty_recent">Aucune page consultée récemment</string>
+    <string name="search_prompt">Saisissez un mot-clé pour lancer la recherche</string>
+
+    <!-- Common -->
+    <string name="error_generic">Une erreur est survenue</string>
+    <string name="loading">Chargement…</string>
+
+    <!-- Reader Enhancements -->
+    <string name="page_reader_previous">Précédent</string>
+    <string name="page_reader_next">Suivant</string>
+    <string name="page_reader_toc">Table des matières</string>
+    <string name="page_reader_toc_title">Sommaire de la page</string>
+    <string name="page_reader_toc_empty">Aucun titre dans cette page</string>
 </resources>

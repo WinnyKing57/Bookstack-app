@@ -11,11 +11,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -28,16 +29,19 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.winnyking.bookstackcompanion.R
 import com.winnyking.bookstackcompanion.domain.model.FavoriteItem
 import com.winnyking.bookstackcompanion.domain.model.ServerConfig
 import com.winnyking.bookstackcompanion.domain.repository.FavoriteRepository
 import com.winnyking.bookstackcompanion.domain.repository.ServerRepository
+import com.winnyking.bookstackcompanion.ui.components.EmptyState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -85,7 +89,7 @@ fun FavoritesScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Pages Favorites") }
+                title = { Text(stringResource(R.string.favorites_title)) }
             )
         }
     ) { paddingValues ->
@@ -93,12 +97,11 @@ fun FavoritesScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues),
-                contentAlignment = Alignment.Center
+                    .padding(paddingValues)
             ) {
-                Text(
-                    text = "Aucune page en favoris pour ce serveur",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                EmptyState(
+                    icon = Icons.Default.BookmarkBorder,
+                    message = stringResource(R.string.favorites_empty)
                 )
             }
         } else {
@@ -110,13 +113,11 @@ fun FavoritesScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(favorites) { item ->
-                    Card(
+                    ElevatedCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { onNavigateToPageReader(item.pageId) },
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
-                        )
+                        shape = RoundedCornerShape(12.dp)
                     ) {
                         Row(
                             modifier = Modifier
@@ -133,13 +134,13 @@ fun FavoritesScreen(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = item.pageName,
-                                    fontWeight = FontWeight.Bold,
+                                    fontWeight = FontWeight.SemiBold,
                                     style = MaterialTheme.typography.titleMedium,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
-                                    text = "${item.bookName} • ${item.chapterName.ifBlank { "Page directe" }}",
+                                    text = "${item.bookName} \u2022 ${item.chapterName.ifBlank { stringResource(R.string.favorites_direct_page) }}",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -147,7 +148,7 @@ fun FavoritesScreen(
                             IconButton(onClick = { viewModel.removeFavorite(item) }) {
                                 Icon(
                                     imageVector = Icons.Default.Delete,
-                                    contentDescription = "Supprimer des favoris",
+                                    contentDescription = stringResource(R.string.favorites_remove),
                                     tint = MaterialTheme.colorScheme.error
                                 )
                             }

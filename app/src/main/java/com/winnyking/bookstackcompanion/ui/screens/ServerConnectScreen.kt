@@ -1,18 +1,18 @@
 package com.winnyking.bookstackcompanion.ui.screens
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Key
-import androidx.compose.material.icons.filled.Label
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -32,13 +32,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.winnyking.bookstackcompanion.R
 import com.winnyking.bookstackcompanion.domain.repository.ServerRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -71,7 +72,7 @@ class ServerConnectViewModel @Inject constructor(
             if (success) {
                 _uiState.value = ServerConnectUiState.TestSuccess
             } else {
-                _uiState.value = ServerConnectUiState.Error("Impossible de se connecter au serveur BookStack. Vérifiez l'URL et vos jetons d'API.")
+                _uiState.value = ServerConnectUiState.Error("error_connect_failed")
             }
         }
     }
@@ -84,7 +85,7 @@ class ServerConnectViewModel @Inject constructor(
                 _uiState.value = ServerConnectUiState.Saved
                 onSuccess()
             } else {
-                _uiState.value = ServerConnectUiState.Error(result.exceptionOrNull()?.message ?: "Erreur de sauvegarde")
+                _uiState.value = ServerConnectUiState.Error(result.exceptionOrNull()?.message ?: "error_save_failed")
             }
         }
     }
@@ -106,7 +107,7 @@ fun ServerConnectScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Connecter un serveur BookStack") }
+                title = { Text(stringResource(R.string.server_connect_title)) }
             )
         }
     ) { paddingValues ->
@@ -119,7 +120,7 @@ fun ServerConnectScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "Entrez les coordonnées de votre instance BookStack pour vous connecter.",
+                text = stringResource(R.string.server_connect_description),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.fillMaxWidth()
@@ -130,8 +131,8 @@ fun ServerConnectScreen(
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("Nom du serveur (ex: Mon BookStack)") },
-                leadingIcon = { Icon(Icons.Default.Label, contentDescription = null) },
+                label = { Text(stringResource(R.string.server_name_label)) },
+                leadingIcon = { Icon(Icons.AutoMirrored.Filled.Label, contentDescription = null) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
@@ -141,7 +142,7 @@ fun ServerConnectScreen(
             OutlinedTextField(
                 value = baseUrl,
                 onValueChange = { baseUrl = it },
-                label = { Text("URL du serveur (https://bookstack.example.com)") },
+                label = { Text(stringResource(R.string.server_url_label)) },
                 leadingIcon = { Icon(Icons.Default.Link, contentDescription = null) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
@@ -152,7 +153,7 @@ fun ServerConnectScreen(
             OutlinedTextField(
                 value = tokenId,
                 onValueChange = { tokenId = it },
-                label = { Text("Token ID") },
+                label = { Text(stringResource(R.string.server_token_id_label)) },
                 leadingIcon = { Icon(Icons.Default.Key, contentDescription = null) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
@@ -163,7 +164,7 @@ fun ServerConnectScreen(
             OutlinedTextField(
                 value = tokenSecret,
                 onValueChange = { tokenSecret = it },
-                label = { Text("Token Secret") },
+                label = { Text(stringResource(R.string.server_token_secret_label)) },
                 leadingIcon = { Icon(Icons.Default.Dns, contentDescription = null) },
                 visualTransformation = PasswordVisualTransformation(),
                 modifier = Modifier.fillMaxWidth(),
@@ -177,8 +178,13 @@ fun ServerConnectScreen(
                     CircularProgressIndicator()
                 }
                 is ServerConnectUiState.Error -> {
+                    val errorMsg = when ((uiState as ServerConnectUiState.Error).message) {
+                        "error_connect_failed" -> stringResource(R.string.server_connect_error)
+                        "error_save_failed" -> stringResource(R.string.server_save_error)
+                        else -> stringResource(R.string.error_generic)
+                    }
                     Text(
-                        text = (uiState as ServerConnectUiState.Error).message,
+                        text = errorMsg,
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.padding(bottom = 16.dp)
@@ -186,7 +192,7 @@ fun ServerConnectScreen(
                 }
                 is ServerConnectUiState.TestSuccess -> {
                     Text(
-                        text = "Connexion réussie !",
+                        text = stringResource(R.string.server_connect_success),
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.bodyLarge,
@@ -200,17 +206,21 @@ fun ServerConnectScreen(
                 OutlinedButton(
                     onClick = { viewModel.testConnection(name, baseUrl, tokenId, tokenSecret) },
                     enabled = name.isNotBlank() && baseUrl.isNotBlank() && tokenId.isNotBlank() && tokenSecret.isNotBlank(),
-                    modifier = Modifier.weight(1f).padding(end = 8.dp)
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 8.dp)
                 ) {
-                    Text("Tester la connexion")
+                    Text(stringResource(R.string.server_connect_test))
                 }
 
                 Button(
                     onClick = { viewModel.saveServer(name, baseUrl, tokenId, tokenSecret, onServerConnected) },
                     enabled = name.isNotBlank() && baseUrl.isNotBlank() && tokenId.isNotBlank() && tokenSecret.isNotBlank(),
-                    modifier = Modifier.weight(1f).padding(start = 8.dp)
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 8.dp)
                 ) {
-                    Text("Enregistrer")
+                    Text(stringResource(R.string.server_connect_save))
                 }
             }
         }

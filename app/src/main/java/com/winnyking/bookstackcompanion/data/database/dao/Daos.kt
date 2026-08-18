@@ -87,8 +87,14 @@ interface PageDao {
     @Query("SELECT COUNT(*) FROM pages WHERE serverId = :serverId AND isCached = 1")
     fun getCachedPagesCount(serverId: String): Flow<Int>
 
+    @Query("SELECT SUM(LENGTH(htmlContent)) FROM pages WHERE serverId = :serverId AND isCached = 1")
+    fun getCachedPagesTotalBytes(serverId: String): Flow<Long?>
+
     @Query("DELETE FROM pages WHERE serverId = :serverId AND isCached = 1")
     suspend fun clearCachedPages(serverId: String)
+
+    @Query("DELETE FROM pages WHERE serverId = :serverId AND bookId = :bookId")
+    suspend fun deleteBookPages(serverId: String, bookId: Long)
 }
 
 @Dao
@@ -104,18 +110,21 @@ interface FavoriteDao {
 
     @Query("DELETE FROM favorites WHERE serverId = :serverId AND pageId = :pageId")
     suspend fun removeFavorite(serverId: String, pageId: Long)
+
+    @Query("DELETE FROM favorites WHERE serverId = :serverId")
+    suspend fun clearFavoritesForServer(serverId: String)
 }
 
 @Dao
 interface HistoryDao {
-    @Query("SELECT * FROM history WHERE serverId = :serverId ORDER BY accessedAt DESC LIMIT 100")
-    fun getHistoryForServer(serverId: String): Flow<List<HistoryEntity>>
+    @Query("SELECT * FROM history WHERE serverId = :serverId ORDER BY accessedAt DESC LIMIT :limit")
+    fun getHistoryForServer(serverId: String, limit: Int = 100): Flow<List<HistoryEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun addHistory(history: HistoryEntity)
 
-    @Query("DELETE FROM history WHERE serverId = :serverId AND pageId NOT IN (SELECT pageId FROM history WHERE serverId = :serverId ORDER BY accessedAt DESC LIMIT 100)")
-    suspend fun trimHistory(serverId: String)
+    @Query("DELETE FROM history WHERE serverId = :serverId AND pageId NOT IN (SELECT pageId FROM history WHERE serverId = :serverId ORDER BY accessedAt DESC LIMIT :limit)")
+    suspend fun trimHistory(serverId: String, limit: Int = 100)
 
     @Query("DELETE FROM history WHERE serverId = :serverId")
     suspend fun clearHistoryForServer(serverId: String)

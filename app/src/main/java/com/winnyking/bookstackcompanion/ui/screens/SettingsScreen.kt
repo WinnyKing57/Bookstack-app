@@ -12,12 +12,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -26,17 +29,24 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.winnyking.bookstackcompanion.BuildConfig
+import com.winnyking.bookstackcompanion.R
 import com.winnyking.bookstackcompanion.data.datastore.FontSize
 import com.winnyking.bookstackcompanion.data.datastore.ThemeMode
 import com.winnyking.bookstackcompanion.data.datastore.UserPreferencesManager
@@ -76,9 +86,16 @@ class SettingsViewModel @Inject constructor(
     val fontSize: StateFlow<FontSize> = userPreferencesManager.fontSize
         .stateIn(viewModelScope, SharingStarted.Lazily, FontSize.NORMAL)
 
+    val historyLimit: StateFlow<Int> = userPreferencesManager.historyLimit
+        .stateIn(viewModelScope, SharingStarted.Lazily, UserPreferencesManager.DEFAULT_HISTORY_LIMIT)
+
     val cachedPagesCount: StateFlow<Int> = selectedServer.flatMapLatest { server ->
         if (server != null) bookStackRepository.getCachedPagesCount(server.id) else flowOf(0)
     }.stateIn(viewModelScope, SharingStarted.Lazily, 0)
+
+    val cachedPagesTotalBytes: StateFlow<Long> = selectedServer.flatMapLatest { server ->
+        if (server != null) bookStackRepository.getCachedPagesTotalBytes(server.id) else flowOf(0L)
+    }.stateIn(viewModelScope, SharingStarted.Lazily, 0L)
 
     fun selectServer(serverId: String) {
         viewModelScope.launch { serverRepository.selectServer(serverId) }
@@ -94,6 +111,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setFontSize(size: FontSize) {
         viewModelScope.launch { userPreferencesManager.setFontSize(size) }
+    }
+
+    fun setHistoryLimit(limit: Int) {
+        viewModelScope.launch { userPreferencesManager.setHistoryLimit(limit) }
     }
 
     fun clearCache() {
@@ -117,12 +138,62 @@ fun SettingsScreen(
     val selectedServer by viewModel.selectedServer.collectAsState()
     val themeMode by viewModel.themeMode.collectAsState()
     val fontSize by viewModel.fontSize.collectAsState()
+    val historyLimit by viewModel.historyLimit.collectAsState()
     val cachedCount by viewModel.cachedPagesCount.collectAsState()
+
+    var serverToDelete by remember { mutableStateOf<ServerConfig?>(null) }
+    var showClearCacheDialog by remember { mutableStateOf(false) }
+
+    serverToDelete?.let { server ->
+        AlertDialog(
+            onDismissRequest = { serverToDelete = null },
+            title = { Text(stringResource(R.string.delete_server_dialog_title)) },
+            text = { Text(stringResource(R.string.delete_server_dialog_message, server.name)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteServer(server.id)
+                        serverToDelete = null
+                    }
+                ) {
+                    Text(stringResource(R.string.confirm_delete), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { serverToDelete = null }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
+    if (showClearCacheDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearCacheDialog = false },
+            title = { Text(stringResource(R.string.clear_cache_dialog_title)) },
+            text = { Text(stringResource(R.string.clear_cache_dialog_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.clearCache()
+                        showClearCacheDialog = false
+                    }
+                ) {
+                    Text(stringResource(R.string.confirm_clear))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearCacheDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Paramètres") }
+                title = { Text(stringResource(R.string.settings_title)) }
             )
         }
     ) { paddingValues ->
@@ -134,16 +205,17 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                Text("Serveurs BookStack", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.settings_servers_section), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
             items(allServers) { server ->
-                Card(
+                ElevatedCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { viewModel.selectServer(server.id) },
-                    colors = CardDefaults.cardColors(
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.elevatedCardColors(
                         containerColor = if (server.id == selectedServer?.id) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
                     )
                 ) {
@@ -161,8 +233,8 @@ fun SettingsScreen(
                             Text(server.name, fontWeight = FontWeight.Bold)
                             Text(server.baseUrl, style = MaterialTheme.typography.bodySmall)
                         }
-                        IconButton(onClick = { viewModel.deleteServer(server.id) }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Supprimer", tint = MaterialTheme.colorScheme.error)
+                        IconButton(onClick = { serverToDelete = server }) {
+                            Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.settings_delete_server), tint = MaterialTheme.colorScheme.error)
                         }
                     }
                 }
@@ -172,66 +244,87 @@ fun SettingsScreen(
                 OutlinedButton(onClick = onNavigateToConnectServer, modifier = Modifier.fillMaxWidth()) {
                     Icon(Icons.Default.Add, contentDescription = null)
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("Ajouter un serveur")
+                    Text(stringResource(R.string.settings_add_server))
                 }
             }
 
             item {
-                Text("Apparence & Thème", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Card(modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.settings_appearance_section), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             RadioButton(selected = themeMode == ThemeMode.SYSTEM, onClick = { viewModel.setThemeMode(ThemeMode.SYSTEM) })
-                            Text("Système")
+                            Text(stringResource(R.string.settings_theme_system))
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             RadioButton(selected = themeMode == ThemeMode.LIGHT, onClick = { viewModel.setThemeMode(ThemeMode.LIGHT) })
-                            Text("Clair")
+                            Text(stringResource(R.string.settings_theme_light))
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             RadioButton(selected = themeMode == ThemeMode.DARK, onClick = { viewModel.setThemeMode(ThemeMode.DARK) })
-                            Text("Sombre")
+                            Text(stringResource(R.string.settings_theme_dark))
                         }
                     }
                 }
             }
 
             item {
-                Text("Taille du texte", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Card(modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.settings_font_section), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             RadioButton(selected = fontSize == FontSize.SMALL, onClick = { viewModel.setFontSize(FontSize.SMALL) })
-                            Text("Petit")
+                            Text(stringResource(R.string.settings_font_small))
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             RadioButton(selected = fontSize == FontSize.NORMAL, onClick = { viewModel.setFontSize(FontSize.NORMAL) })
-                            Text("Normal")
+                            Text(stringResource(R.string.settings_font_normal))
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             RadioButton(selected = fontSize == FontSize.LARGE, onClick = { viewModel.setFontSize(FontSize.LARGE) })
-                            Text("Grand")
+                            Text(stringResource(R.string.settings_font_large))
                         }
                     }
                 }
             }
 
             item {
-                Text("Cache & Synchronisation", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Card(modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.settings_history_section), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(stringResource(R.string.settings_history_limit), style = MaterialTheme.typography.bodyMedium)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        UserPreferencesManager.HISTORY_LIMIT_OPTIONS.forEach { option ->
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                RadioButton(
+                                    selected = historyLimit == option,
+                                    onClick = { viewModel.setHistoryLimit(option) }
+                                )
+                                Text(stringResource(R.string.settings_history_limit_value, option))
+                            }
+                        }
+                    }
+                }
+            }
+
+            item {
+                Text(stringResource(R.string.settings_cache_section), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Pages en cache : $cachedCount")
+                        val cachedBytes by viewModel.cachedPagesTotalBytes.collectAsState()
+                        val cacheSizeMb = String.format(Locale.getDefault(), "%.2f Mo", cachedBytes / (1024.0 * 1024.0))
+                        Text(stringResource(R.string.settings_cached_pages, cachedCount) + " ($cacheSizeMb)")
                         val lastSyncStr = selectedServer?.lastSyncTimestamp?.let { ts ->
-                            if (ts > 0) SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date(ts)) else "Jamais"
-                        } ?: "Jamais"
-                        Text("Dernière synchro : $lastSyncStr")
+                            if (ts > 0) SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date(ts)) else stringResource(R.string.settings_sync_never)
+                        } ?: stringResource(R.string.settings_sync_never)
+                        Text(stringResource(R.string.settings_last_sync, lastSyncStr))
                         Spacer(modifier = Modifier.height(12.dp))
                         Row {
                             Button(onClick = { viewModel.syncNow() }, modifier = Modifier.weight(1f).padding(end = 4.dp)) {
-                                Text("Synchroniser")
+                                Text(stringResource(R.string.settings_sync_now))
                             }
-                            OutlinedButton(onClick = { viewModel.clearCache() }, modifier = Modifier.weight(1f).padding(start = 4.dp)) {
-                                Text("Vider le cache")
+                            OutlinedButton(onClick = { showClearCacheDialog = true }, modifier = Modifier.weight(1f).padding(start = 4.dp)) {
+                                Text(stringResource(R.string.settings_clear_cache))
                             }
                         }
                     }
@@ -239,12 +332,12 @@ fun SettingsScreen(
             }
 
             item {
-                Text("À propos", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Card(modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.settings_about_section), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("WinBook-Stack v1.0.0", fontWeight = FontWeight.Bold)
-                        Text("Développeur : WinnyKing")
-                        Text("Site web : winnyking.cloud")
+                        Text(stringResource(R.string.settings_version, BuildConfig.VERSION_NAME), fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.settings_developer))
+                        Text(stringResource(R.string.settings_website))
                     }
                 }
             }

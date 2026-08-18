@@ -14,8 +14,8 @@ class HistoryRepositoryImpl @Inject constructor(
     private val historyDao: HistoryDao
 ) : HistoryRepository {
 
-    override fun getHistory(serverId: String): Flow<List<HistoryItem>> {
-        return historyDao.getHistoryForServer(serverId).map { entities ->
+    override fun getHistory(serverId: String, limit: Int): Flow<List<HistoryItem>> {
+        return historyDao.getHistoryForServer(serverId, limit).map { entities ->
             entities.map {
                 HistoryItem(
                     id = "${it.serverId}_${it.pageId}",
@@ -35,7 +35,8 @@ class HistoryRepositoryImpl @Inject constructor(
         pageId: Long,
         pageName: String,
         bookName: String,
-        chapterName: String
+        chapterName: String,
+        historyLimit: Int
     ) {
         historyDao.addHistory(
             HistoryEntity(
@@ -47,7 +48,7 @@ class HistoryRepositoryImpl @Inject constructor(
                 accessedAt = System.currentTimeMillis()
             )
         )
-        historyDao.trimHistory(serverId)
+        historyDao.trimHistory(serverId, historyLimit)
     }
 
     override suspend fun clearHistory(serverId: String) {

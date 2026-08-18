@@ -1,46 +1,70 @@
 package com.winnyking.bookstackcompanion.ui.screens
 
+import android.annotation.SuppressLint
+import android.content.Context
+import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.NavigateBefore
+import androidx.compose.material.icons.automirrored.filled.NavigateNext
+import androidx.compose.material.icons.automirrored.filled.Toc
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.FormatSize
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Toc
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.winnyking.bookstackcompanion.R
 import com.winnyking.bookstackcompanion.data.datastore.FontSize
 import com.winnyking.bookstackcompanion.data.datastore.ThemeMode
 import com.winnyking.bookstackcompanion.data.datastore.UserPreferencesManager
@@ -61,6 +85,23 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+data class TocItem(
+    val level: Int,
+    val title: String,
+    val anchorId: String
+)
+
+class ObservableWebView(context: Context) : WebView(context) {
+    var onScrollProgressChanged: ((Float) -> Unit)? = null
+
+    override fun onScrollChanged(l: Int, t: Int, oldl: Int, oldt: Int) {
+        super.onScrollChanged(l, t, oldl, oldt)
+        val maxScroll = computeVerticalScrollRange() - height
+        val progress = if (maxScroll > 0) (t.toFloat() / maxScroll.toFloat()).coerceIn(0f, 1f) else 0f
+        onScrollProgressChanged?.invoke(progress)
+    }
+}
+
 @HiltViewModel
 class PageReaderViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
@@ -71,7 +112,10 @@ class PageReaderViewModel @Inject constructor(
     val userPreferencesManager: UserPreferencesManager
 ) : ViewModel() {
 
-    val pageId: Long = checkNotNull(savedStateHandle["pageId"])
+    private val initialPageId: Long = checkNotNull(savedStateHandle["pageId"])
+
+    private val _currentPageId = MutableStateFlow(initialPageId)
+    val currentPageId: StateFlow<Long> = _currentPageId
 
     val selectedServer: StateFlow<ServerConfig?> = serverRepository.getSelectedServer()
         .stateIn(viewModelScope, SharingStarted.Lazily, null)
@@ -82,11 +126,23 @@ class PageReaderViewModel @Inject constructor(
     val fontSize: StateFlow<FontSize> = userPreferencesManager.fontSize
         .stateIn(viewModelScope, SharingStarted.Lazily, FontSize.NORMAL)
 
+    private val historyLimit: StateFlow<Int> = userPreferencesManager.historyLimit
+        .stateIn(viewModelScope, SharingStarted.Lazily, UserPreferencesManager.DEFAULT_HISTORY_LIMIT)
+
     private val _page = MutableStateFlow<Page?>(null)
     val page: StateFlow<Page?> = _page
 
+    private val _tocItems = MutableStateFlow<List<TocItem>>(emptyList())
+    val tocItems: StateFlow<List<TocItem>> = _tocItems
+
+    private val _previousPage = MutableStateFlow<Page?>(null)
+    val previousPage: StateFlow<Page?> = _previousPage
+
+    private val _nextPage = MutableStateFlow<Page?>(null)
+    val nextPage: StateFlow<Page?> = _nextPage
+
     val isFavorite: StateFlow<Boolean> = selectedServer.flatMapLatest { server ->
-        if (server != null) favoriteRepository.isFavorite(server.id, pageId) else flowOf(false)
+        if (server != null) favoriteRepository.isFavorite(server.id, _currentPageId.value) else flowOf(false)
     }.stateIn(viewModelScope, SharingStarted.Lazily, false)
 
     private val _isLoading = MutableStateFlow(true)
@@ -95,29 +151,92 @@ class PageReaderViewModel @Inject constructor(
     private val _isOffline = MutableStateFlow(false)
     val isOffline: StateFlow<Boolean> = _isOffline
 
-    fun loadPage(forceRemote: Boolean = false) {
+    fun loadPage(targetPageId: Long = _currentPageId.value, forceRemote: Boolean = false) {
         val server = selectedServer.value ?: return
         viewModelScope.launch {
+            _currentPageId.value = targetPageId
             _isLoading.value = true
-            val result = bookStackRepository.getPageDetail(server.id, pageId, forceRemote)
+            val result = bookStackRepository.getPageDetail(server.id, targetPageId, forceRemote)
             if (result.isSuccess) {
                 val fetchedPage = result.getOrNull()
-                _page.value = fetchedPage
-                _isOffline.value = fetchedPage?.isCached == true && forceRemote
-
                 if (fetchedPage != null) {
+                    val processedHtml = processTocAndHtml(fetchedPage.htmlContent)
+                    _page.value = fetchedPage.copy(htmlContent = processedHtml)
+                    _isOffline.value = fetchedPage.isCached && forceRemote
+                    loadAdjacentPages(server.id, fetchedPage.bookId, targetPageId)
+
                     historyRepository.addHistory(
                         serverId = server.id,
                         pageId = fetchedPage.id,
                         pageName = fetchedPage.name,
-                        bookName = "Livre",
-                        chapterName = ""
+                        bookName = "",
+                        chapterName = "",
+                        historyLimit = historyLimit.value
                     )
                 }
             } else {
                 _isOffline.value = true
             }
             _isLoading.value = false
+        }
+    }
+
+    private fun processTocAndHtml(rawHtml: String): String {
+        val regex = Regex("""<(h[1-3])([^>]*)>(.*?)</\1>""", RegexOption.IGNORE_CASE)
+        val items = mutableListOf<TocItem>()
+        var index = 0
+
+        val processedHtml = regex.replace(rawHtml) { matchResult ->
+            val tag = matchResult.groupValues[1].lowercase()
+            val attributes = matchResult.groupValues[2]
+            val innerContent = matchResult.groupValues[3]
+            val cleanTitle = innerContent.replace(Regex("<[^>]*>"), "").trim()
+
+            val anchorId = "toc_$index"
+            index++
+
+            val level = when (tag) {
+                "h1" -> 1
+                "h2" -> 2
+                "h3" -> 3
+                else -> 1
+            }
+            if (cleanTitle.isNotBlank()) {
+                items.add(TocItem(level = level, title = cleanTitle, anchorId = anchorId))
+            }
+
+            "<$tag id=\"$anchorId\"$attributes>$innerContent</$tag>"
+        }
+
+        _tocItems.value = items
+        return processedHtml
+    }
+
+    private fun loadAdjacentPages(serverId: String, bookId: Long, currentPageId: Long) {
+        if (bookId <= 0) {
+            _previousPage.value = null
+            _nextPage.value = null
+            return
+        }
+        viewModelScope.launch {
+            val treeResult = bookStackRepository.getBookTree(serverId, bookId)
+            if (treeResult.isSuccess) {
+                val (chapters, directPages) = treeResult.getOrNull()!!
+                val allPages = mutableListOf<Page>()
+                chapters.forEach { chapter ->
+                    allPages.addAll(chapter.pages)
+                }
+                allPages.addAll(directPages)
+
+                val currentIndex = allPages.indexOfFirst { it.id == currentPageId }
+                if (currentIndex != -1) {
+                    _previousPage.value = if (currentIndex > 0) allPages[currentIndex - 1] else null
+                    _nextPage.value = if (currentIndex < allPages.size - 1) allPages[currentIndex + 1] else null
+                } else {
+                    _previousPage.value = null
+                    _nextPage.value = null
+                }
+            }
         }
     }
 
@@ -129,7 +248,7 @@ class PageReaderViewModel @Inject constructor(
                 serverId = server.id,
                 pageId = current.id,
                 pageName = current.name,
-                bookName = "Livre",
+                bookName = "",
                 chapterName = ""
             )
         }
@@ -161,6 +280,14 @@ fun PageReaderScreen(
     val themeMode by viewModel.themeMode.collectAsState()
     val fontSize by viewModel.fontSize.collectAsState()
 
+    val tocItems by viewModel.tocItems.collectAsState()
+    val previousPage by viewModel.previousPage.collectAsState()
+    val nextPage by viewModel.nextPage.collectAsState()
+
+    var showTocSheet by remember { mutableStateOf(false) }
+    var readingProgress by remember { mutableFloatStateOf(0f) }
+    var webViewInstance by remember { mutableStateOf<ObservableWebView?>(null) }
+
     val isDarkTheme = when (themeMode) {
         ThemeMode.SYSTEM -> isSystemInDarkTheme()
         ThemeMode.LIGHT -> false
@@ -172,9 +299,6 @@ fun PageReaderScreen(
             viewModel.loadPage()
         }
     }
-
-    val backgroundColor = MaterialTheme.colorScheme.background.toArgb()
-    val textColor = MaterialTheme.colorScheme.onBackground.toArgb()
 
     val htmlFontCss = when (fontSize) {
         FontSize.SMALL -> "font-size: 14px;"
@@ -202,7 +326,7 @@ fun PageReaderScreen(
             </style>
         </head>
         <body>
-            ${page?.htmlContent ?: "<p>Aucun contenu disponible</p>"}
+            ${page?.htmlContent ?: "<p>${stringResource(R.string.page_reader_no_content)}</p>"}
         </body>
         </html>
     """.trimIndent()
@@ -210,28 +334,95 @@ fun PageReaderScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(page?.name ?: "Lecture", maxLines = 1) },
+                title = { Text(page?.name ?: stringResource(R.string.page_reader_title), maxLines = 1) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.page_reader_back))
                     }
                 },
                 actions = {
                     IconButton(onClick = { viewModel.cycleFontSize() }) {
-                        Icon(Icons.Default.FormatSize, contentDescription = "Taille du texte")
+                        Icon(Icons.Default.FormatSize, contentDescription = stringResource(R.string.page_reader_font_size))
                     }
                     IconButton(onClick = { viewModel.toggleFavorite() }) {
                         Icon(
                             imageVector = if (isFavorite) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
-                            contentDescription = "Favori",
+                            contentDescription = stringResource(R.string.page_reader_favorite),
                             tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                         )
                     }
                     IconButton(onClick = { viewModel.loadPage(forceRemote = true) }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Rafraîchir")
+                        Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.page_reader_refresh))
                     }
                 }
             )
+        },
+        bottomBar = {
+            Surface(
+                tonalElevation = 3.dp,
+                shadowElevation = 4.dp
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    TextButton(
+                        onClick = { previousPage?.let { viewModel.loadPage(it.id) } },
+                        enabled = previousPage != null,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.NavigateBefore,
+                            contentDescription = stringResource(R.string.page_reader_previous)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = previousPage?.name ?: stringResource(R.string.page_reader_previous),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+
+                    IconButton(
+                        onClick = { showTocSheet = true }
+                    ) {
+                        BadgedBox(
+                            badge = {
+                                if (tocItems.isNotEmpty()) {
+                                    Badge { Text("${tocItems.size}") }
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Toc,
+                                contentDescription = stringResource(R.string.page_reader_toc)
+                            )
+                        }
+                    }
+
+                    TextButton(
+                        onClick = { nextPage?.let { viewModel.loadPage(it.id) } },
+                        enabled = nextPage != null,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            text = nextPage?.name ?: stringResource(R.string.page_reader_next),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.NavigateNext,
+                            contentDescription = stringResource(R.string.page_reader_next)
+                        )
+                    }
+                }
+            }
         }
     ) { paddingValues ->
         Column(
@@ -241,6 +432,17 @@ fun PageReaderScreen(
         ) {
             if (isOffline) {
                 OfflineBanner()
+            }
+
+            if (readingProgress > 0f) {
+                LinearProgressIndicator(
+                    progress = { readingProgress },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+                )
             }
 
             if (isLoading && page == null) {
@@ -254,12 +456,26 @@ fun PageReaderScreen(
                 AndroidView(
                     modifier = Modifier.fillMaxSize(),
                     factory = { context ->
-                        WebView(context).apply {
+                        @SuppressLint("SetJavaScriptEnabled")
+                        val webView = ObservableWebView(context).apply {
                             webViewClient = WebViewClient()
-                            settings.javaScriptEnabled = true
+                            settings.javaScriptEnabled = false
                             settings.loadWithOverviewMode = true
                             settings.useWideViewPort = true
+                            settings.allowFileAccess = false
+                            settings.allowContentAccess = false
+                            settings.setSupportZoom(true)
+                            settings.builtInZoomControls = true
+                            settings.displayZoomControls = false
+                            settings.defaultTextEncodingName = "UTF-8"
+                            settings.cacheMode = WebSettings.LOAD_DEFAULT
+
+                            onScrollProgressChanged = { progress ->
+                                readingProgress = progress
+                            }
                         }
+                        webViewInstance = webView
+                        webView
                     },
                     update = { webView ->
                         webView.loadDataWithBaseURL(
@@ -271,6 +487,80 @@ fun PageReaderScreen(
                         )
                     }
                 )
+            }
+        }
+
+        if (showTocSheet) {
+            ModalBottomSheet(
+                onDismissRequest = { showTocSheet = false },
+                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.page_reader_toc_title),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+
+                    if (tocItems.isEmpty()) {
+                        Text(
+                            text = stringResource(R.string.page_reader_toc_empty),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(vertical = 16.dp)
+                        )
+                    } else {
+                        LazyColumn(
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(tocItems) { item ->
+                                val paddingStart = when (item.level) {
+                                    1 -> 0.dp
+                                    2 -> 16.dp
+                                    else -> 32.dp
+                                }
+                                val textStyle = when (item.level) {
+                                    1 -> MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
+                                    2 -> MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                                    else -> MaterialTheme.typography.bodySmall
+                                }
+
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            webViewInstance?.evaluateJavascript(
+                                                "document.getElementById('${item.anchorId}')?.scrollIntoView({behavior: 'smooth'});",
+                                                null
+                                            )
+                                            showTocSheet = false
+                                        }
+                                        .padding(start = paddingStart, top = 8.dp, bottom = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Bookmark,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = item.title,
+                                        style = textStyle,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }

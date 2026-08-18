@@ -12,8 +12,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.winnyking.bookstackcompanion.R
 
 @Composable
 fun OfflineBanner(
@@ -22,18 +23,18 @@ fun OfflineBanner(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(Color(0xFFE53935))
+            .background(MaterialTheme.colorScheme.error)
             .padding(horizontal = 16.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = Icons.Default.CloudOff,
             contentDescription = null,
-            tint = Color.White
+            tint = MaterialTheme.colorScheme.onError
         )
         Text(
-            text = "Mode hors ligne - Données du cache local",
-            color = Color.White,
+            text = stringResource(R.string.offline_banner),
+            color = MaterialTheme.colorScheme.onError,
             style = MaterialTheme.typography.labelMedium,
             modifier = Modifier.padding(start = 8.dp)
         )

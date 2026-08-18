@@ -7,6 +7,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -21,7 +22,16 @@ class DynamicApiClientFactory @Inject constructor(
         isLenient = true
     }
 
+    private val clientCache = ConcurrentHashMap<String, BookStackApi>()
+
     fun createApi(baseUrl: String, serverId: String): BookStackApi {
+        val cacheKey = "$serverId:$baseUrl"
+        return clientCache.getOrPut(cacheKey) {
+            createApiInternal(baseUrl, serverId)
+        }
+    }
+
+    private fun createApiInternal(baseUrl: String, serverId: String): BookStackApi {
         val sanitizedBaseUrl = if (baseUrl.endsWith("/")) baseUrl else "$baseUrl/"
 
         val loggingInterceptor = HttpLoggingInterceptor().apply {
@@ -79,5 +89,9 @@ class DynamicApiClientFactory @Inject constructor(
         } catch (e: Exception) {
             false
         }
+    }
+
+    fun invalidateCache(serverId: String) {
+        clientCache.keys.removeAll { it.startsWith("$serverId:") }
     }
 }

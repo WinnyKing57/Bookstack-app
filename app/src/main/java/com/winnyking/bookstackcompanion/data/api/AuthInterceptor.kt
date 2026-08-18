@@ -17,7 +17,7 @@ class AuthInterceptor(
             return chain.proceed(originalRequest)
         }
 
-        val tokenId = secureStorageManager.getTokenId(serverId)
+        val tokenId = secureStorageManager.getTokenId(serverId!!)
         val tokenSecret = secureStorageManager.getTokenSecret(serverId)
 
         if (tokenId.isBlank() || tokenSecret.isBlank()) {

@@ -60,6 +60,12 @@ object DatabaseModule {
 
     @Provides
     fun provideHistoryDao(db: AppDatabase): HistoryDao = db.historyDao()
+
+    @Provides
+    @Singleton
+    fun provideConnectivityObserver(@ApplicationContext context: Context): com.winnyking.bookstackcompanion.data.network.ConnectivityObserver {
+        return com.winnyking.bookstackcompanion.data.network.NetworkConnectivityObserver(context)
+    }
 }
 
 @Module

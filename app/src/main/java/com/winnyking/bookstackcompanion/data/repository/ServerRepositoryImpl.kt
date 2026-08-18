@@ -1,8 +1,13 @@
 package com.winnyking.bookstackcompanion.data.repository
 
 import com.winnyking.bookstackcompanion.data.api.DynamicApiClientFactory
+import com.winnyking.bookstackcompanion.data.database.dao.BookDao
+import com.winnyking.bookstackcompanion.data.database.dao.ChapterDao
+import com.winnyking.bookstackcompanion.data.database.dao.FavoriteDao
+import com.winnyking.bookstackcompanion.data.database.dao.HistoryDao
+import com.winnyking.bookstackcompanion.data.database.dao.PageDao
 import com.winnyking.bookstackcompanion.data.database.dao.ServerDao
-import com.winnyking.bookstackcompanion.data.database.entity.ServerEntity
+import com.winnyking.bookstackcompanion.data.database.dao.ShelfDao
 import com.winnyking.bookstackcompanion.data.security.SecureStorageManager
 import com.winnyking.bookstackcompanion.domain.model.ServerConfig
 import com.winnyking.bookstackcompanion.domain.repository.ServerRepository
@@ -16,7 +21,12 @@ import javax.inject.Singleton
 class ServerRepositoryImpl @Inject constructor(
     private val serverDao: ServerDao,
     private val secureStorageManager: SecureStorageManager,
-    private val apiClientFactory: DynamicApiClientFactory
+    private val apiClientFactory: DynamicApiClientFactory,
+    private val bookDao: BookDao,
+    private val shelfDao: ShelfDao,
+    private val pageDao: PageDao,
+    private val favoriteDao: FavoriteDao,
+    private val historyDao: HistoryDao
 ) : ServerRepository {
 
     override fun getAllServers(): Flow<List<ServerConfig>> {
@@ -47,7 +57,7 @@ class ServerRepositoryImpl @Inject constructor(
             val serverId = UUID.randomUUID().toString()
             secureStorageManager.saveServerCredentials(serverId, tokenId, tokenSecret)
 
-            val serverEntity = ServerEntity(
+            val serverEntity = com.winnyking.bookstackcompanion.data.database.entity.ServerEntity(
                 id = serverId,
                 name = name,
                 baseUrl = sanitizedUrl,
@@ -70,6 +80,11 @@ class ServerRepositoryImpl @Inject constructor(
 
     override suspend fun deleteServer(serverId: String) {
         secureStorageManager.deleteServerCredentials(serverId)
+        bookDao.deleteBooksForServer(serverId)
+        shelfDao.deleteShelvesForServer(serverId)
+        pageDao.clearCachedPages(serverId)
+        favoriteDao.clearFavoritesForServer(serverId)
+        historyDao.clearHistoryForServer(serverId)
         serverDao.deleteServer(serverId)
     }
 
@@ -88,7 +103,7 @@ class ServerRepositoryImpl @Inject constructor(
         }
     }
 
-    private fun ServerEntity.toDomainModel(): ServerConfig {
+    private fun com.winnyking.bookstackcompanion.data.database.entity.ServerEntity.toDomainModel(): ServerConfig {
         return ServerConfig(
             id = id,
             name = name,

@@ -8,7 +8,11 @@ data class ServerConfig(
     val tokenSecret: String,
     val isSelected: Boolean = false,
     val lastSyncTimestamp: Long = 0L
-)
+) {
+    override fun toString(): String {
+        return "ServerConfig(id=$id, name=$name, baseUrl=$baseUrl, isSelected=$isSelected, lastSyncTimestamp=$lastSyncTimestamp)"
+    }
+}
 
 data class Book(
     val id: Long,
@@ -59,14 +63,14 @@ data class SearchResult(
     val serverId: String,
     val name: String,
     val slug: String,
-    val type: String, // "book", "chapter", "page"
+    val type: String,
     val previewContent: String = "",
     val bookId: Long? = null,
     val chapterId: Long? = null
 )
 
 data class FavoriteItem(
-    val id: String, // serverId_pageId
+    val id: String,
     val serverId: String,
     val pageId: Long,
     val pageName: String,
@@ -76,7 +80,7 @@ data class FavoriteItem(
 )
 
 data class HistoryItem(
-    val id: String, // serverId_pageId
+    val id: String,
     val serverId: String,
     val pageId: Long,
     val pageName: String,

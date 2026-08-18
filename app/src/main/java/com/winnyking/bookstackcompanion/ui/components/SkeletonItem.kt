@@ -22,6 +22,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -38,10 +39,11 @@ fun SkeletonItem(
         label = "shimmerTranslate"
     )
 
+    val baseColor = MaterialTheme.colorScheme.surfaceVariant
     val shimmerColors = listOf(
-        Color.LightGray.copy(alpha = 0.6f),
-        Color.LightGray.copy(alpha = 0.2f),
-        Color.LightGray.copy(alpha = 0.6f)
+        baseColor.copy(alpha = 0.7f),
+        baseColor.copy(alpha = 0.3f),
+        baseColor.copy(alpha = 0.7f)
     )
 
     val brush = Brush.linearGradient(

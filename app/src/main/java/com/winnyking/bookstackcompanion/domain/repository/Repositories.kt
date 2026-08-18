@@ -26,11 +26,13 @@ interface BookStackRepository {
     suspend fun getBookDetail(serverId: String, bookId: Long): Result<Book>
     suspend fun getBookTree(serverId: String, bookId: Long): Result<Pair<List<Chapter>, List<Page>>>
     suspend fun getPageDetail(serverId: String, pageId: Long, forceRemote: Boolean = false): Result<Page>
-    suspend fun downloadBookForOffline(serverId: String, bookId: Long): Result<Unit>
+    suspend fun downloadBookForOffline(serverId: String, bookId: Long, onProgress: ((completed: Int, total: Int) -> Unit)? = null): Result<Unit>
     fun getShelves(serverId: String): Flow<List<Shelf>>
     suspend fun refreshShelves(serverId: String): Result<Unit>
     suspend fun search(serverId: String, query: String): Result<List<SearchResult>>
     fun getCachedPagesCount(serverId: String): Flow<Int>
+    fun getCachedPagesTotalBytes(serverId: String): Flow<Long>
+    suspend fun deleteBookOfflineCache(serverId: String, bookId: Long)
     suspend fun clearCache(serverId: String)
 }
 
@@ -41,7 +43,7 @@ interface FavoriteRepository {
 }
 
 interface HistoryRepository {
-    fun getHistory(serverId: String): Flow<List<HistoryItem>>
-    suspend fun addHistory(serverId: String, pageId: Long, pageName: String, bookName: String, chapterName: String)
+    fun getHistory(serverId: String, limit: Int = 100): Flow<List<HistoryItem>>
+    suspend fun addHistory(serverId: String, pageId: Long, pageName: String, bookName: String, chapterName: String, historyLimit: Int = 100)
     suspend fun clearHistory(serverId: String)
 }

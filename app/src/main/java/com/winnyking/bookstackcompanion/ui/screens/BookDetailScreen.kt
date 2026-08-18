@@ -11,11 +11,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Description
@@ -27,6 +28,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -38,18 +40,21 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.winnyking.bookstackcompanion.R
 import com.winnyking.bookstackcompanion.domain.model.Book
 import com.winnyking.bookstackcompanion.domain.model.Chapter
 import com.winnyking.bookstackcompanion.domain.model.Page
 import com.winnyking.bookstackcompanion.domain.model.ServerConfig
 import com.winnyking.bookstackcompanion.domain.repository.BookStackRepository
 import com.winnyking.bookstackcompanion.domain.repository.ServerRepository
+import com.winnyking.bookstackcompanion.ui.components.BookCoverImage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -82,6 +87,9 @@ class BookDetailViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading
 
+    private val _downloadProgress = MutableStateFlow(DownloadProgressState())
+    val downloadProgress: StateFlow<DownloadProgressState> = _downloadProgress
+
     fun loadBookDetails() {
         val server = selectedServer.value ?: return
         viewModelScope.launch {
@@ -104,7 +112,11 @@ class BookDetailViewModel @Inject constructor(
     fun downloadForOffline() {
         val server = selectedServer.value ?: return
         viewModelScope.launch {
-            bookStackRepository.downloadBookForOffline(server.id, bookId)
+            _downloadProgress.value = DownloadProgressState(isDownloading = true)
+            bookStackRepository.downloadBookForOffline(server.id, bookId) { completed, total ->
+                _downloadProgress.value = DownloadProgressState(isDownloading = true, completed = completed, total = total)
+            }
+            _downloadProgress.value = DownloadProgressState(isDownloading = false)
             loadBookDetails()
         }
     }
@@ -122,6 +134,7 @@ fun BookDetailScreen(
     val directPages by viewModel.directPages.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val selectedServer by viewModel.selectedServer.collectAsState()
+    val downloadProgress by viewModel.downloadProgress.collectAsState()
 
     LaunchedEffect(selectedServer) {
         if (selectedServer != null) {
@@ -132,10 +145,10 @@ fun BookDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(book?.name ?: "Détail du Livre") },
+                title = { Text(book?.name ?: stringResource(R.string.book_detail_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.page_reader_back))
                     }
                 }
             )
@@ -161,31 +174,59 @@ fun BookDetailScreen(
                 item {
                     book?.let { b ->
                         Column {
-                            Text(
-                                text = b.name,
-                                style = MaterialTheme.typography.headlineMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                            if (b.description.isNotBlank()) {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = b.description,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                BookCoverImage(
+                                    coverUrl = b.coverUrl,
+                                    baseUrl = selectedServer?.baseUrl,
+                                    contentDescription = b.name,
+                                    modifier = Modifier.size(90.dp),
+                                    fallbackIcon = Icons.Default.Book
                                 )
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = b.name,
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    if (b.description.isNotBlank()) {
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = b.description,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
                             }
                             Spacer(modifier = Modifier.height(16.dp))
-                            if (b.isDownloaded) {
+                            if (downloadProgress.isDownloading) {
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    Text(
+                                        text = stringResource(R.string.download_progress, downloadProgress.completed, downloadProgress.total),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.padding(bottom = 4.dp)
+                                    )
+                                    LinearProgressIndicator(
+                                        progress = { downloadProgress.progressFraction },
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+                            } else if (b.isDownloaded) {
                                 OutlinedButton(onClick = { viewModel.downloadForOffline() }, modifier = Modifier.fillMaxWidth()) {
                                     Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Disponible Hors-ligne (Re-télécharger)")
+                                    Text(stringResource(R.string.book_detail_offline_available))
                                 }
                             } else {
                                 Button(onClick = { viewModel.downloadForOffline() }, modifier = Modifier.fillMaxWidth()) {
                                     Icon(Icons.Default.Download, contentDescription = null)
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Télécharger le livre complet hors-ligne")
+                                    Text(stringResource(R.string.book_detail_download_full))
                                 }
                             }
                         }
@@ -195,7 +236,7 @@ fun BookDetailScreen(
                 if (chapters.isNotEmpty()) {
                     item {
                         Text(
-                            text = "Chapitres",
+                            text = stringResource(R.string.book_detail_chapters),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
@@ -247,7 +288,7 @@ fun BookDetailScreen(
                 if (directPages.isNotEmpty()) {
                     item {
                         Text(
-                            text = "Pages Directes",
+                            text = stringResource(R.string.book_detail_direct_pages),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
@@ -282,3 +323,4 @@ fun BookDetailScreen(
         }
     }
 }
+
