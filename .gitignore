@@ -27,5 +27,8 @@
 # Firebase
 google-services.json
 
+# Signing config
+keystore.properties
+
 # OS-specific
 Thumbs.db
