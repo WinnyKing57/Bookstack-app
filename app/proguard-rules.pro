@@ -52,3 +52,6 @@
 -keepclassmembers class com.winnyking.bookstackcompanion.data.api.model.** { <fields>; }
 -keepclassmembers class com.winnyking.bookstackcompanion.domain.model.** { <fields>; }
 -keepclassmembers class com.winnyking.bookstackcompanion.data.database.entity.** { <fields>; }
+
+# Google Crypto Tink (security-crypto) — missing errorprone annotations
+-dontwarn com.google.errorprone.annotations.**
