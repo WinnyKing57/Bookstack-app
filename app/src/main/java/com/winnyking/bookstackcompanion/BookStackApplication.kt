@@ -25,7 +25,8 @@ class BookStackApplication : Application(), ImageLoaderFactory {
     @Volatile
     private var authHeader: String? = null
 
-    init {
+    override fun onCreate() {
+        super.onCreate()
         CoroutineScope(Dispatchers.IO).launch {
             serverRepository.getSelectedServer().collect { server ->
                 authHeader = if (server != null) {
