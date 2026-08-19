@@ -7,11 +7,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Label
-import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material3.AlertDialog
@@ -35,8 +37,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalFocusManager
+
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -83,7 +92,7 @@ class ServerConnectViewModel @Inject constructor(
                 _uiState.value = ServerConnectUiState.TestSuccess
             } else {
                 val errorDetails = result.exceptionOrNull()?.message
-                    ?: "Impossible de se connecter au serveur $sanitized."
+                    ?: "Impossible de se connecter au serveur $sanitized." // TODO: Move to stringResource for localization
                 _uiState.value = ServerConnectUiState.Error(errorDetails)
             }
         }
@@ -104,7 +113,7 @@ class ServerConnectViewModel @Inject constructor(
                 onSuccess()
             } else {
                 val errorDetails = result.exceptionOrNull()?.message
-                    ?: "Erreur de sauvegarde pour $sanitized."
+                    ?: "Erreur de sauvegarde pour $sanitized." // TODO: Move to stringResource for localization
                 _uiState.value = ServerConnectUiState.Error(errorDetails)
             }
         }
@@ -125,6 +134,9 @@ fun ServerConnectScreen(
     var tokenSecret by remember { mutableStateOf("") }
     var allowHttp by remember { mutableStateOf(false) }
     var showHttpWarningDialog by remember { mutableStateOf(false) }
+
+    val focusManager = LocalFocusManager.current
+    val focusRequesters = remember { List(4) { FocusRequester() } }
 
     val httpNotAllowedErrorMsg = stringResource(R.string.http_not_allowed_error)
 
@@ -185,8 +197,10 @@ fun ServerConnectScreen(
                 onValueChange = { name = it },
                 label = { Text(stringResource(R.string.server_name_label)) },
                 leadingIcon = { Icon(Icons.AutoMirrored.Filled.Label, contentDescription = null) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                modifier = Modifier.fillMaxWidth().focusRequester(focusRequesters[0]),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                keyboardActions = KeyboardActions(onNext = { focusRequesters[1].requestFocus() })
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -202,8 +216,10 @@ fun ServerConnectScreen(
                 },
                 label = { Text(stringResource(R.string.server_url_label)) },
                 leadingIcon = { Icon(Icons.Default.Link, contentDescription = null) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                modifier = Modifier.fillMaxWidth().focusRequester(focusRequesters[1]),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next, keyboardType = KeyboardType.Uri),
+                keyboardActions = KeyboardActions(onNext = { focusRequesters[2].requestFocus() })
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -213,6 +229,13 @@ fun ServerConnectScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 4.dp)
+                    .clickable {
+                        if (!allowHttp) {
+                            showHttpWarningDialog = true
+                        } else {
+                            allowHttp = false
+                        }
+                    }
             ) {
                 Checkbox(
                     checked = allowHttp,
@@ -238,8 +261,10 @@ fun ServerConnectScreen(
                 onValueChange = { tokenId = it },
                 label = { Text(stringResource(R.string.server_token_id_label)) },
                 leadingIcon = { Icon(Icons.Default.Key, contentDescription = null) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                modifier = Modifier.fillMaxWidth().focusRequester(focusRequesters[2]),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                keyboardActions = KeyboardActions(onNext = { focusRequesters[3].requestFocus() })
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -248,10 +273,12 @@ fun ServerConnectScreen(
                 value = tokenSecret,
                 onValueChange = { tokenSecret = it },
                 label = { Text(stringResource(R.string.server_token_secret_label)) },
-                leadingIcon = { Icon(Icons.Default.Dns, contentDescription = null) },
+                leadingIcon = { Icon(Icons.Default.Key, contentDescription = null) },
                 visualTransformation = PasswordVisualTransformation(),
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                modifier = Modifier.fillMaxWidth().focusRequester(focusRequesters[3]),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done, keyboardType = KeyboardType.Password),
+                keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() })
             )
 
             Spacer(modifier = Modifier.height(24.dp))

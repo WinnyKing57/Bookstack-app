@@ -13,11 +13,11 @@ class AuthInterceptor(
         val originalRequest = chain.request()
         val serverId = currentServerIdProvider()
 
-        if (serverId.isNull_or_empty()) {
+        if (serverId.isNullOrEmpty()) {
             return chain.proceed(originalRequest)
         }
 
-        val tokenId = secureStorageManager.getTokenId(serverId!!)
+        val tokenId = secureStorageManager.getTokenId(serverId)
         val tokenSecret = secureStorageManager.getTokenSecret(serverId)
 
         if (tokenId.isBlank() || tokenSecret.isBlank()) {
@@ -32,4 +32,3 @@ class AuthInterceptor(
     }
 }
 
-private fun String?.isNull_or_empty(): Boolean = this == null || this.isEmpty()

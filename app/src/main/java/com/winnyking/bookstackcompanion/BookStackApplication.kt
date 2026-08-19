@@ -7,8 +7,9 @@ import coil.util.DebugLogger
 import com.winnyking.bookstackcompanion.data.security.SecureStorageManager
 import com.winnyking.bookstackcompanion.domain.repository.ServerRepository
 import dagger.hilt.android.HiltAndroidApp
-import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import javax.inject.Inject
 
@@ -21,22 +22,30 @@ class BookStackApplication : Application(), ImageLoaderFactory {
     @Inject
     lateinit var serverRepository: ServerRepository
 
+    @Volatile
+    private var authHeader: String? = null
+
+    init {
+        CoroutineScope(Dispatchers.IO).launch {
+            serverRepository.getSelectedServer().collect { server ->
+                authHeader = if (server != null) {
+                    val secret = secureStorageManager.getTokenSecret(server.id)
+                    "Token ${server.tokenId}:$secret"
+                } else null
+            }
+        }
+    }
+
     override fun newImageLoader(): ImageLoader {
         val okHttpClient = OkHttpClient.Builder()
             .addInterceptor { chain ->
-                val request = chain.request()
-                val server = runBlocking { serverRepository.getSelectedServer().firstOrNull() }
-                if (server != null) {
-                    val tokenId = secureStorageManager.getTokenId(server.id)
-                    val tokenSecret = secureStorageManager.getTokenSecret(server.id)
-                    if (tokenId.isNotBlank() && tokenSecret.isNotBlank()) {
-                        val authRequest = request.newBuilder()
-                            .header("Authorization", "Token $tokenId:$tokenSecret")
-                            .build()
-                        return@addInterceptor chain.proceed(authRequest)
-                    }
+                val original = chain.request()
+                val header = authHeader
+                if (header != null) {
+                    chain.proceed(original.newBuilder().header("Authorization", header).build())
+                } else {
+                    chain.proceed(original)
                 }
-                chain.proceed(request)
             }
             .build()
 

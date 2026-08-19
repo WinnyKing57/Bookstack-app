@@ -19,7 +19,7 @@ class DynamicApiClientFactory @Inject constructor(
     private val json = Json {
         ignoreUnknownKeys = true
         coerceInputValues = true
-        isLenient = true
+        isLenient = false
     }
 
     private val clientCache = ConcurrentHashMap<String, BookStackApi>()
@@ -33,8 +33,7 @@ class DynamicApiClientFactory @Inject constructor(
     }
 
     private fun createApiInternal(baseUrl: String, serverId: String): BookStackApi {
-        val sanitizedBase = UrlSanitizer.sanitizeBaseUrl(baseUrl)
-        val formattedBaseUrl = "$sanitizedBase/"
+        val formattedBaseUrl = "$baseUrl/"
 
         val loggingInterceptor = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY

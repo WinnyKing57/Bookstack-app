@@ -5,7 +5,6 @@ import com.winnyking.bookstackcompanion.data.api.model.ChapterDto
 import com.winnyking.bookstackcompanion.data.api.model.PageDto
 import com.winnyking.bookstackcompanion.data.api.model.PagedResponse
 import com.winnyking.bookstackcompanion.data.api.model.SearchResultDto
-import com.winnyking.bookstackcompanion.data.api.model.ServerSystemInfoResponse
 import com.winnyking.bookstackcompanion.data.api.model.ShelfDto
 import retrofit2.http.GET
 import retrofit2.http.Path
@@ -46,6 +45,4 @@ interface BookStackApi {
         @Query("count") count: Int = 50
     ): PagedResponse<SearchResultDto>
 
-    @GET("api/docs.json")
-    suspend fun testConnection(): ServerSystemInfoResponse
 }

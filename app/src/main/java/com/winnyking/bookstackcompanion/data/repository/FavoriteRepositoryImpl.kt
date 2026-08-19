@@ -7,6 +7,8 @@ import com.winnyking.bookstackcompanion.domain.repository.FavoriteRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -14,6 +16,8 @@ import javax.inject.Singleton
 class FavoriteRepositoryImpl @Inject constructor(
     private val favoriteDao: FavoriteDao
 ) : FavoriteRepository {
+
+    private val favoriteMutex = Mutex()
 
     override fun getFavorites(serverId: String): Flow<List<FavoriteItem>> {
         return favoriteDao.getFavoritesForServer(serverId).map { entities ->
@@ -42,20 +46,22 @@ class FavoriteRepositoryImpl @Inject constructor(
         bookName: String,
         chapterName: String
     ) {
-        val currentlyFav = favoriteDao.isFavorite(serverId, pageId).first()
-        if (currentlyFav) {
-            favoriteDao.removeFavorite(serverId, pageId)
-        } else {
-            favoriteDao.addFavorite(
-                FavoriteEntity(
-                    serverId = serverId,
-                    pageId = pageId,
-                    pageName = pageName,
-                    bookName = bookName,
-                    chapterName = chapterName,
-                    addedAt = System.currentTimeMillis()
+        favoriteMutex.withLock {
+            val currentlyFav = favoriteDao.isFavorite(serverId, pageId).first()
+            if (currentlyFav) {
+                favoriteDao.removeFavorite(serverId, pageId)
+            } else {
+                favoriteDao.addFavorite(
+                    FavoriteEntity(
+                        serverId = serverId,
+                        pageId = pageId,
+                        pageName = pageName,
+                        bookName = bookName,
+                        chapterName = chapterName,
+                        addedAt = System.currentTimeMillis()
+                    )
                 )
-            )
+            }
         }
     }
 }

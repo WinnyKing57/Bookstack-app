@@ -1,6 +1,8 @@
 package com.winnyking.bookstackcompanion.ui.navigation
 
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -48,7 +50,7 @@ fun AppNavigation(
                 NavigationBar {
                     bottomNavItems.forEach { screen ->
                         NavigationBarItem(
-                            icon = { Icon(screen.icon!!, contentDescription = null) },
+                            icon = { Icon(screen.icon ?: Icons.Default.Home, contentDescription = null) },
                             label = { Text(stringResource(screen.titleResId)) },
                             selected = currentRoute == screen.route,
                             onClick = {

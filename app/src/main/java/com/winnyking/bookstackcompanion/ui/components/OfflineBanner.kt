@@ -23,18 +23,18 @@ fun OfflineBanner(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.error)
+            .background(MaterialTheme.colorScheme.tertiaryContainer)
             .padding(horizontal = 16.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = Icons.Default.CloudOff,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onError
+            tint = MaterialTheme.colorScheme.onTertiaryContainer
         )
         Text(
             text = stringResource(R.string.offline_banner),
-            color = MaterialTheme.colorScheme.onError,
+            color = MaterialTheme.colorScheme.onTertiaryContainer,
             style = MaterialTheme.typography.labelMedium,
             modifier = Modifier.padding(start = 8.dp)
         )

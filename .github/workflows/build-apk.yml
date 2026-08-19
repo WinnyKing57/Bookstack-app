@@ -1,8 +1,8 @@
-name: Build Unsigned APK
+name: Build & Test
 
 on:
   push:
-    branches: [ "main", "master", "jules-*" ]
+    branches: [ "main", "master" ]
   pull_request:
     branches: [ "main", "master" ]
 
@@ -28,6 +28,9 @@ jobs:
 
       - name: Run Unit Tests
         run: ./gradlew test
+
+      - name: Run Lint
+        run: ./gradlew lint
 
       - name: Build Debug APK
         run: ./gradlew assembleDebug

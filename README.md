@@ -1,81 +1,105 @@
 # BookStack Companion
 
-**BookStack Companion** est un client Android natif moderne pour accéder et consulter vos instances [BookStack](https://www.bookstackapp.com/) auto-hébergées.
+[![Build](https://github.com/WinnyKing57/Bookstack-app/actions/workflows/build-apk.yml/badge.svg)](https://github.com/WinnyKing57/Bookstack-app/actions/workflows/build-apk.yml)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![API](https://img.shields.io/badge/API-26%2B-brightgreen.svg)](https://developer.android.com/about/versions/oreo)
+[![Kotlin](https://img.shields.io/badge/Kotlin-1.9.22-purple.svg)](https://kotlinlang.org)
+[![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-blue.svg)](https://developer.android.com/jetpack/compose)
 
-Développé par **WinnyKing** ([winnyking.cloud](https://winnyking.cloud)).
+**BookStack Companion** is a modern native Android client for accessing and browsing your self-hosted [BookStack](https://www.bookstackapp.com/) instances.
 
----
+Developed by **WinnyKing** ([winnyking.cloud](https://winnyking.cloud)).
 
-## 📱 Fonctionnalités
-
-- **Multi-serveurs sécurisé** : Configurez et passez d'un serveur BookStack à un autre instantanément. Les identifiants (`Token ID` et `Token Secret`) sont chiffrés localement via **Android Keystore** et **EncryptedSharedPreferences**.
-- **Tableau de bord** : Accès rapide aux livres, étagères, recherches, favoris et pages récemment consultées.
-- **Consultation des Livres & Étagères** : Exploration sous forme de grilles et listes avec recherche locale, tri, pull-to-refresh et vue arborescente (Livres ➔ Chapitres ➔ Pages).
-- **Lecteur de Page Hybride (Compose + WebView)** : Rendu HTML élégant avec support des thèmes Clair/Sombre, réglage dynamique de la taille de police, citations, tableaux et blocs de code.
-- **Mode Hors-ligne & Téléchargement complet** : Téléchargez un livre entier pour une consultation 100% hors-ligne. Un bandeau clair indique lorsque les données proviennent du cache local.
-- **Favoris & Historique** : Mettez vos pages en favoris et retrouvez votre historique de consultation isolé pour chaque serveur.
-- **Recherche Globale API** : Recherche instantanée dans les livres, chapitres et pages de l'instance.
-- **Paramètres personnalisés** : Thème (Système, Clair, Sombre), taille de texte, gestionnaire de cache et synchronisation manuelle.
-
----
-
-## 🛠️ Stack Technique
-
-- **Langage** : Kotlin
-- **Interface Utilisateur** : Jetpack Compose + Material 3
-- **Architecture** : MVVM (Clean Architecture en couches UI / ViewModel / UseCases / Repository / Data)
-- **Injection de Dépendances** : Hilt / Dagger
-- **Réseau** : Retrofit 2 + OkHttp 4 + Kotlinx Serialization
-- **Base de données Locale** : Room DB
-- **Stockage Sécurisé** : AndroidX Security Crypto (Android Keystore)
-- **Préférences** : Jetpack DataStore Preferences
-- **Chargement d'Images** : Coil Compose
-- **SDK Min** : Android 8.0 (API 26)
-- **SDK Cible** : Android 14 (API 34)
+<p align="center">
+  <a href="README_FR.md">
+    <img src="https://img.shields.io/badge/Fran%C3%A7ais-Fran%C3%A7ais-blue?style=for-the-badge&logo=google-translate" alt="Français" />
+  </a>
+</p>
 
 ---
 
-## 🔑 Créer un Token d'API sur BookStack
+## Features
 
-Pour connecter l'application à votre instance BookStack :
-
-1. Connectez-vous à votre instance BookStack.
-2. Allez dans votre **Profil** ➔ **Edit Profile** ➔ section **API Tokens**.
-3. Cliquez sur **Add API Token**.
-4. Donnez un nom (ex: `BookStack Companion App`).
-5. Copiez soigneusement le **Token ID** et le **Token Secret** générés.
+- **Secure Multi-Server**: Configure and switch between BookStack servers instantly. Credentials (`Token ID` and `Token Secret`) are encrypted locally via **Android Keystore** and **EncryptedSharedPreferences**.
+- **Dashboard**: Quick access to books, shelves, search, favorites, and recently viewed pages.
+- **Books & Shelves Browsing**: Grid and list views with local search, sorting, pull-to-refresh, and tree view (Books → Chapters → Pages).
+- **Hybrid Page Reader (Compose + WebView)**: Elegant HTML rendering with Light/Dark theme support, dynamic font size adjustment, blockquotes, tables, and code blocks.
+- **Offline Mode & Full Download**: Download an entire book for 100% offline access. A clear banner indicates when data comes from the local cache.
+- **Favorites & History**: Bookmark pages and track your reading history, isolated per server.
+- **Global API Search**: Instant search across books, chapters, and pages from your BookStack instance.
+- **Custom Settings**: Theme (System, Light, Dark), text size, cache manager, and manual sync.
 
 ---
 
-## 🚀 Compilation et Installation
+## Tech Stack
 
-### Ouvrir le projet dans Android Studio
-1. Ouvrez **Android Studio** (version Jellyfish ou plus récente recommandée).
-2. Sélectionnez **Open** et choisissez le dossier du projet.
-3. Laissez Gradle synchroniser les dépendances.
+- **Language**: Kotlin
+- **UI**: Jetpack Compose + Material 3
+- **Architecture**: MVVM (Clean Architecture: UI / ViewModel / UseCases / Repository / Data)
+- **Dependency Injection**: Hilt / Dagger
+- **Networking**: Retrofit 2 + OkHttp 4 + Kotlinx Serialization
+- **Local Database**: Room DB
+- **Secure Storage**: AndroidX Security Crypto (Android Keystore)
+- **Preferences**: Jetpack DataStore Preferences
+- **Image Loading**: Coil Compose
+- **Min SDK**: Android 8.0 (API 26)
+- **Target SDK**: Android 14 (API 34)
 
-### Exécuter les tests unitaires
-Dans un terminal à la racine du projet :
+---
+
+## Create an API Token on BookStack
+
+To connect the app to your BookStack instance:
+
+1. Log in to your BookStack instance.
+2. Go to your **Profile** → **Edit Profile** → **API Tokens** section.
+3. Click **Add API Token**.
+4. Give it a name (e.g., `BookStack Companion App`).
+5. Carefully copy the generated **Token ID** and **Token Secret**.
+
+---
+
+## Build & Install
+
+### Open the project in Android Studio
+1. Open **Android Studio** (Jellyfish or newer recommended).
+2. Select **Open** and choose the project folder.
+3. Let Gradle sync dependencies.
+
+### Run unit tests
 ```bash
 ./gradlew test
 ```
 
-### Générer l'APK Debug
+### Build Debug APK
 ```bash
 ./gradlew assembleDebug
 ```
-L'APK généré se trouvera dans :
-`app/build/outputs/apk/debug/app-debug.apk`
+The APK will be at: `app/build/outputs/apk/debug/app-debug.apk`
 
-### Générer l'APK Release
+### Build Release APK
 ```bash
 ./gradlew assembleRelease
 ```
 
+For detailed Linux build instructions, see [info_build.md](info_build.md).
+
 ---
 
-## 👨‍💻 Développeur & Crédits
+## Contributing
 
-- **Développeur** : WinnyKing
-- **Site Web** : [winnyking.cloud](https://winnyking.cloud)
-- **Projet** : BookStack Companion
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting a PR.
+
+---
+
+## License
+
+This project is licensed under the **GNU General Public License v3.0** — see the [LICENSE](LICENSE) file for details.
+
+---
+
+## Developer & Credits
+
+- **Developer**: WinnyKing
+- **Website**: [winnyking.cloud](https://winnyking.cloud)
+- **Project**: BookStack Companion

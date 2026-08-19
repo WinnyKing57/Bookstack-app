@@ -3,16 +3,19 @@ package com.winnyking.bookstackcompanion.ui.theme
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.winnyking.bookstackcompanion.data.datastore.ThemeMode
 
@@ -24,8 +27,8 @@ private val DarkColorScheme = darkColorScheme(
     primary = BookStackAccent,
     secondary = BookStackBlue,
     tertiary = Color(0xFF80DEEA),
-    surface = Color(0xFF1E1E1E),
-    surfaceVariant = Color(0xFF2C2C2C),
+    surface = Color(0xFF1C1B1F),
+    surfaceVariant = Color(0xFF2B2930),
     background = Color(0xFF121212)
 )
 
@@ -92,7 +95,32 @@ private val AppTypography = Typography(
         fontSize = 12.sp,
         lineHeight = 16.sp,
         letterSpacing = 0.5.sp
-    )
+    ),
+    labelSmall = TextStyle(
+        fontSize = 11.sp,
+        lineHeight = 16.sp,
+        fontWeight = FontWeight.Medium
+    ),
+    headlineSmall = TextStyle(
+        fontSize = 24.sp,
+        lineHeight = 32.sp,
+        fontWeight = FontWeight.SemiBold
+    ),
+    titleSmall = TextStyle(
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
+        fontWeight = FontWeight.Medium
+    ),
+    displayLarge = Typography().displayLarge,
+    displayMedium = Typography().displayMedium,
+    displaySmall = Typography().displaySmall
+)
+
+private val AppShapes = Shapes(
+    small = RoundedCornerShape(8.dp),
+    medium = RoundedCornerShape(12.dp),
+    large = RoundedCornerShape(16.dp),
+    extraLarge = RoundedCornerShape(28.dp)
 )
 
 @Composable
@@ -119,6 +147,7 @@ fun BookStackTheme(
     MaterialTheme(
         colorScheme = colorScheme,
         typography = AppTypography,
+        shapes = AppShapes,
         content = content
     )
 }

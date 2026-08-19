@@ -11,3 +11,21 @@
 /auto-testing/
 *.apk
 *.ap_
+
+# Signing
+*.jks
+*.keystore
+
+# Android App Bundle
+*.aab
+
+# Generated files
+*.dex
+*.class
+*.hprof
+
+# Firebase
+google-services.json
+
+# OS-specific
+Thumbs.db

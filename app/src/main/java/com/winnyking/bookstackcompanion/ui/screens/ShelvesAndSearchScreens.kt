@@ -157,7 +157,11 @@ fun ShelvesScreen(
                 ) {
                     items(shelves) { shelf ->
                         ElevatedCard(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(enabled = shelf.bookIds.isNotEmpty()) {
+                                    onNavigateToBookDetail(shelf.bookIds.first())
+                                },
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Row(
@@ -348,8 +352,14 @@ fun SearchScreen(
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold
                                     )
+                                    val localizedType = when (item.type.lowercase()) {
+                                        "page" -> stringResource(R.string.search_type_page)
+                                        "book" -> stringResource(R.string.search_type_book)
+                                        "chapter" -> stringResource(R.string.search_type_chapter)
+                                        else -> item.type
+                                    }
                                     Text(
-                                        text = stringResource(R.string.search_type_label, item.type.replaceFirstChar { it.uppercase() }),
+                                        text = stringResource(R.string.search_type_label, localizedType),
                                         style = MaterialTheme.typography.labelMedium,
                                         color = MaterialTheme.colorScheme.secondary
                                     )

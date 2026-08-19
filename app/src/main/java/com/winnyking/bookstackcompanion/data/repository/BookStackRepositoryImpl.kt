@@ -4,6 +4,7 @@ import com.winnyking.bookstackcompanion.data.api.BookStackApi
 import com.winnyking.bookstackcompanion.data.api.DynamicApiClientFactory
 import com.winnyking.bookstackcompanion.data.database.dao.BookDao
 import com.winnyking.bookstackcompanion.data.database.dao.ChapterDao
+import com.winnyking.bookstackcompanion.data.database.dao.FavoriteDao
 import com.winnyking.bookstackcompanion.data.database.dao.PageDao
 import com.winnyking.bookstackcompanion.data.database.dao.ServerDao
 import com.winnyking.bookstackcompanion.data.database.dao.ShelfDao
@@ -18,6 +19,7 @@ import com.winnyking.bookstackcompanion.domain.model.SearchResult
 import com.winnyking.bookstackcompanion.domain.model.Shelf
 import com.winnyking.bookstackcompanion.domain.repository.BookStackRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -30,6 +32,7 @@ class BookStackRepositoryImpl @Inject constructor(
     private val shelfDao: ShelfDao,
     private val chapterDao: ChapterDao,
     private val pageDao: PageDao,
+    private val favoriteDao: FavoriteDao,
     private val apiClientFactory: DynamicApiClientFactory
 ) : BookStackRepository {
 
@@ -61,6 +64,7 @@ class BookStackRepositoryImpl @Inject constructor(
                     lastUpdated = dto.updated_at
                 )
             }
+            bookDao.deleteBooksForServer(serverId)
             bookDao.insertBooks(entities)
             Result.success(Unit)
         } catch (e: Exception) {
@@ -102,6 +106,8 @@ class BookStackRepositoryImpl @Inject constructor(
             val api = getApiForServer(serverId)
             val bookDto = api.getBookDetail(bookId)
 
+            val favoritePageIds = favoriteDao.getFavoritesForServer(serverId).first().map { it.pageId }.toSet()
+
             val chaptersList = mutableListOf<Chapter>()
             val directPagesList = mutableListOf<Page>()
 
@@ -116,7 +122,7 @@ class BookStackRepositoryImpl @Inject constructor(
                             name = pageDto.name,
                             slug = pageDto.slug,
                             htmlContent = pageDto.html ?: "",
-                            isFavorite = false,
+                            isFavorite = favoritePageIds.contains(pageDto.id),
                             isCached = false
                         )
                     } ?: emptyList()
@@ -142,7 +148,7 @@ class BookStackRepositoryImpl @Inject constructor(
                             name = item.name,
                             slug = item.slug,
                             htmlContent = "",
-                            isFavorite = false,
+                            isFavorite = favoritePageIds.contains(item.id),
                             isCached = false
                         )
                     )
@@ -183,10 +189,37 @@ class BookStackRepositoryImpl @Inject constructor(
             // Fallback to local DB
             val localChapters = chapterDao.getChaptersForBook(serverId, bookId).firstOrNull() ?: emptyList()
             val localPages = pageDao.getPagesForBook(serverId, bookId).firstOrNull() ?: emptyList()
+            val favoritePageIds = favoriteDao.getFavoritesForServer(serverId).first().map { it.pageId }.toSet()
 
-            val directPages = localPages.filter { it.chapterId == 0L }.map { it.toDomain() }
+            val directPages = localPages.filter { it.chapterId == 0L }.map {
+                Page(
+                    id = it.id,
+                    serverId = it.serverId,
+                    bookId = it.bookId,
+                    chapterId = it.chapterId,
+                    name = it.name,
+                    slug = it.slug,
+                    htmlContent = it.htmlContent,
+                    isFavorite = favoritePageIds.contains(it.id),
+                    isCached = it.isCached,
+                    lastAccessed = it.lastAccessed
+                )
+            }
             val chaptersWithPages = localChapters.map { chapterEntity ->
-                val pagesForChapter = localPages.filter { it.chapterId == chapterEntity.id }.map { it.toDomain() }
+                val pagesForChapter = localPages.filter { it.chapterId == chapterEntity.id }.map {
+                    Page(
+                        id = it.id,
+                        serverId = it.serverId,
+                        bookId = it.bookId,
+                        chapterId = it.chapterId,
+                        name = it.name,
+                        slug = it.slug,
+                        htmlContent = it.htmlContent,
+                        isFavorite = favoritePageIds.contains(it.id),
+                        isCached = it.isCached,
+                        lastAccessed = it.lastAccessed
+                    )
+                }
                 Chapter(
                     id = chapterEntity.id,
                     serverId = serverId,
@@ -307,6 +340,7 @@ class BookStackRepositoryImpl @Inject constructor(
                     coverUrl = dto.cover?.url
                 )
             }
+            shelfDao.deleteShelvesForServer(serverId)
             shelfDao.insertShelves(entities)
             Result.success(Unit)
         } catch (e: Exception) {

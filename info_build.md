@@ -1,4 +1,4 @@
-# Guide de Compilation et Build APK sur Linux — BookStack Companion (v1.1.0)
+# Guide de Compilation et Build APK sur Linux — BookStack Companion
 
 Ce document détaille la procédure complète pour compiler et générer les fichiers **APK** (Debug et Release) ou **AAB** (Android App Bundle) pour l'application Android **BookStack Companion** sous un environnement Linux.
 
@@ -9,14 +9,14 @@ Ce document détaille la procédure complète pour compiler et générer les fic
 Pour compiler l'application sur Linux sans erreurs, assurez-vous d'avoir les éléments suivants installés et configurés :
 
 ### A. Java Development Kit (JDK 21)
-L'application requiert Java 17 ou **JDK 21**. 
-Dans ce projet, le chemin du JDK est explicitement configuré dans `gradle.properties` :
-```properties
-org.gradle.java.home=/home/winny/.jdks/ms-21.0.9
-```
-*Si vous compilez sur une autre machine Linux, ajustez ce chemin dans `gradle.properties` ou définissez la variable d'environnement `JAVA_HOME` :*
+L'application requiert Java 17 ou **JDK 21**.
+Définissez la variable d'environnement `JAVA_HOME` pour pointer vers votre installation JDK 21 :
 ```bash
 export JAVA_HOME=/path/to/your/jdk-21
+```
+*Alternativement, vous pouvez configurer `org.gradle.java.home` dans `gradle.properties` :*
+```properties
+org.gradle.java.home=/path/to/your/jdk-21
 ```
 
 ### B. Permissions d'Exécution sur Gradle Wrapper
@@ -31,7 +31,7 @@ chmod +x gradlew
 
 Naviguez vers le dossier racine du projet Android :
 ```bash
-cd "/home/winny/Depot Github prso/bookstack/app_bookstack/Bookstack-app"
+cd /path/to/Bookstack-app
 ```
 
 ---

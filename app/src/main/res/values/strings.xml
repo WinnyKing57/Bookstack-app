@@ -74,6 +74,9 @@
     <string name="search_placeholder">Rechercher dans tout BookStack…</string>
     <string name="search_no_results">Aucun résultat pour \"%1$s\"</string>
     <string name="search_type_label">Type : %1$s</string>
+    <string name="search_type_page">Page</string>
+    <string name="search_type_book">Livre</string>
+    <string name="search_type_chapter">Chapitre</string>
 
     <!-- Favorites Screen -->
     <string name="favorites_title">Pages Favorites</string>
