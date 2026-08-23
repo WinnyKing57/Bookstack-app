@@ -12,6 +12,7 @@ import com.winnyking.bookstackcompanion.data.database.entity.BookEntity
 import com.winnyking.bookstackcompanion.data.database.entity.ChapterEntity
 import com.winnyking.bookstackcompanion.data.database.entity.PageEntity
 import com.winnyking.bookstackcompanion.data.database.entity.ShelfEntity
+import com.winnyking.bookstackcompanion.data.offline.OfflineImageCache
 import com.winnyking.bookstackcompanion.domain.model.Book
 import com.winnyking.bookstackcompanion.domain.model.Chapter
 import com.winnyking.bookstackcompanion.domain.model.Page
@@ -33,12 +34,16 @@ class BookStackRepositoryImpl @Inject constructor(
     private val chapterDao: ChapterDao,
     private val pageDao: PageDao,
     private val favoriteDao: FavoriteDao,
-    private val apiClientFactory: DynamicApiClientFactory
+    private val apiClientFactory: DynamicApiClientFactory,
+    private val offlineImageCache: OfflineImageCache
 ) : BookStackRepository {
 
-    private suspend fun getApiForServer(serverId: String): BookStackApi {
-        val server = serverDao.getServerById(serverId)
+    private suspend fun getServerOrThrow(serverId: String) =
+        serverDao.getServerById(serverId)
             ?: throw IllegalStateException("Serveur non trouvé pour l'id: $serverId")
+
+    private suspend fun getApiForServer(serverId: String): BookStackApi {
+        val server = getServerOrThrow(serverId)
         return apiClientFactory.createApi(server.baseUrl, server.id)
     }
 
@@ -52,6 +57,10 @@ class BookStackRepositoryImpl @Inject constructor(
         return try {
             val api = getApiForServer(serverId)
             val pagedResponse = api.getBooks(count = 500)
+            val downloadedIds = bookDao.getBooksByServer(serverId).first()
+                .filter { it.isDownloaded }
+                .map { it.id }
+                .toSet()
             val entities = pagedResponse.data.map { dto ->
                 BookEntity(
                     id = dto.id,
@@ -60,8 +69,9 @@ class BookStackRepositoryImpl @Inject constructor(
                     slug = dto.slug,
                     description = dto.description ?: "",
                     coverUrl = dto.cover?.url,
-                    isDownloaded = false,
-                    lastUpdated = dto.updated_at
+                    isDownloaded = downloadedIds.contains(dto.id),
+                    lastUpdated = dto.updated_at,
+                    lastSyncedAt = System.currentTimeMillis()
                 )
             }
             bookDao.deleteBooksForServer(serverId)
@@ -88,7 +98,8 @@ class BookStackRepositoryImpl @Inject constructor(
                     description = dto.description ?: "",
                     coverUrl = dto.cover?.url,
                     isDownloaded = false,
-                    lastUpdated = dto.updated_at
+                    lastUpdated = dto.updated_at,
+                    lastSyncedAt = System.currentTimeMillis()
                 )
                 bookDao.insertBooks(listOf(entity))
                 Result.success(entity.toDomain())
@@ -270,14 +281,14 @@ class BookStackRepositoryImpl @Inject constructor(
             }
         }
     }
-
     override suspend fun downloadBookForOffline(
         serverId: String,
         bookId: Long,
-        onProgress: ((completed: Int, total: Int) -> Unit)?
+        onProgress: (suspend (completed: Int, total: Int) -> Unit)?
     ): Result<Unit> {
         return try {
-            val api = getApiForServer(serverId)
+            val server = getServerOrThrow(serverId)
+            val api = apiClientFactory.createApi(server.baseUrl, server.id)
             val bookDto = api.getBookDetail(bookId)
 
             val pageIdsToFetch = mutableListOf<Long>()
@@ -292,12 +303,15 @@ class BookStackRepositoryImpl @Inject constructor(
             val total = pageIdsToFetch.size
             if (total == 0) {
                 bookDao.updateBookDownloadState(serverId, bookId, true)
+                bookDao.updateLastSyncedAt(serverId, bookId, System.currentTimeMillis())
                 return Result.success(Unit)
             }
 
-            pageIdsToFetch.forEachIndexed { index, pageId ->
+            for ((index, pageId) in pageIdsToFetch.withIndex()) {
                 onProgress?.invoke(index, total)
                 val pageDto = api.getPageDetail(pageId)
+                val html = pageDto.html ?: pageDto.raw_html ?: ""
+                offlineImageCache.cacheImagesForPage(serverId, bookId, server.baseUrl, html)
                 val pageEntity = PageEntity(
                     id = pageDto.id,
                     serverId = serverId,
@@ -305,7 +319,7 @@ class BookStackRepositoryImpl @Inject constructor(
                     chapterId = pageDto.chapter_id ?: 0L,
                     name = pageDto.name,
                     slug = pageDto.slug,
-                    htmlContent = pageDto.html ?: pageDto.raw_html ?: "",
+                    htmlContent = html,
                     isCached = true,
                     lastAccessed = System.currentTimeMillis()
                 )
@@ -314,6 +328,7 @@ class BookStackRepositoryImpl @Inject constructor(
             onProgress?.invoke(total, total)
 
             bookDao.updateBookDownloadState(serverId, bookId, true)
+            bookDao.updateLastSyncedAt(serverId, bookId, System.currentTimeMillis())
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -380,11 +395,14 @@ class BookStackRepositoryImpl @Inject constructor(
 
     override suspend fun deleteBookOfflineCache(serverId: String, bookId: Long) {
         pageDao.deleteBookPages(serverId, bookId)
+        offlineImageCache.deleteImagesForBook(serverId, bookId)
         bookDao.updateBookDownloadState(serverId, bookId, false)
+        bookDao.updateLastSyncedAt(serverId, bookId, 0L)
     }
 
     override suspend fun clearCache(serverId: String) {
         pageDao.clearCachedPages(serverId)
+        offlineImageCache.deleteAllImages(serverId)
     }
 
     private fun BookEntity.toDomain() = Book(
@@ -395,7 +413,8 @@ class BookStackRepositoryImpl @Inject constructor(
         description = description,
         coverUrl = coverUrl,
         isDownloaded = isDownloaded,
-        lastUpdated = lastUpdated
+        lastUpdated = lastUpdated,
+        lastSyncedAt = lastSyncedAt
     )
 
     private fun ShelfEntity.toDomain() = Shelf(

@@ -27,7 +27,7 @@ interface BookStackRepository {
     suspend fun getBookDetail(serverId: String, bookId: Long): Result<Book>
     suspend fun getBookTree(serverId: String, bookId: Long): Result<Pair<List<Chapter>, List<Page>>>
     suspend fun getPageDetail(serverId: String, pageId: Long, forceRemote: Boolean = false): Result<Page>
-    suspend fun downloadBookForOffline(serverId: String, bookId: Long, onProgress: ((completed: Int, total: Int) -> Unit)? = null): Result<Unit>
+    suspend fun downloadBookForOffline(serverId: String, bookId: Long, onProgress: (suspend (completed: Int, total: Int) -> Unit)? = null): Result<Unit>
     fun getShelves(serverId: String): Flow<List<Shelf>>
     suspend fun refreshShelves(serverId: String): Result<Unit>
     suspend fun search(serverId: String, query: String): Result<List<SearchResult>>

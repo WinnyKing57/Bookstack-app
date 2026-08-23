@@ -1,0 +1,22 @@
+BookStack Companion is a free, open-source, native Android client for BookStack (https://www.bookstackapp.com), the self-hosted wiki and documentation platform.
+
+Connect the app to your own BookStack instance using an API token and take your documentation everywhere.
+
+FEATURES
+• Multi-server support with secure credential storage (Android Keystore)
+• Dashboard with quick access to books, shelves and recent pages
+• Browse books and shelves, global search across all content
+• Comfortable page reader: table of contents, previous/next navigation, reading progress
+• Reading options: font size, font family (sans-serif / serif / monospace) and line spacing
+• Full offline mode: download entire books (including images) and read them without a connection
+• Export pages as Markdown, HTML or PDF
+• Favorites and reading history per server
+• Dark and light theme
+• No ads, no tracking, no third-party services
+
+REQUIREMENTS
+• A BookStack server you have access to (self-hosted or otherwise)
+• An API token generated in your BookStack account settings
+
+BookStack Companion is an independent project and is not officially affiliated with the BookStack project.
+Licensed under the GNU General Public License v3.0.

@@ -1,5 +1,6 @@
 package com.winnyking.bookstackcompanion.data.api
 
+import com.winnyking.bookstackcompanion.BuildConfig
 import com.winnyking.bookstackcompanion.data.security.SecureStorageManager
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import kotlinx.serialization.json.Json
@@ -36,7 +37,11 @@ class DynamicApiClientFactory @Inject constructor(
         val formattedBaseUrl = "$baseUrl/"
 
         val loggingInterceptor = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
+            level = if (BuildConfig.DEBUG) {
+                HttpLoggingInterceptor.Level.BODY
+            } else {
+                HttpLoggingInterceptor.Level.NONE
+            }
             redactHeader("Authorization")
         }
 

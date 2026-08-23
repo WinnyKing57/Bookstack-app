@@ -1,0 +1,1 @@
+Ajout : options de lecture (police, interlignage), export Markdown/HTML/PDF, images incluses dans le mode hors-ligne, téléchargements robustes en arrière-plan, date de dernière synchronisation, compatibilité Android 15.

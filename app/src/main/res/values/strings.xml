@@ -55,6 +55,7 @@
     <string name="book_detail_download_full">Télécharger le livre complet hors-ligne</string>
     <string name="book_detail_chapters">Chapitres</string>
     <string name="book_detail_direct_pages">Pages Directes</string>
+    <string name="book_detail_last_sync">Dernière synchro : %1$s</string>
 
     <!-- Page Reader Screen -->
     <string name="page_reader_title">Lecture</string>
@@ -64,6 +65,25 @@
     <string name="page_reader_refresh">Rafraîchir</string>
     <string name="page_reader_back">Retour</string>
     <string name="page_reader_book_label">Livre</string>
+    <string name="page_reader_export">Exporter la page</string>
+    <string name="page_reader_settings">Options de lecture</string>
+
+    <!-- Reader Settings -->
+    <string name="reader_font_family">Police</string>
+    <string name="reader_font_sans">Sans-serif</string>
+    <string name="reader_font_serif">Serif</string>
+    <string name="reader_font_mono">Monospace</string>
+    <string name="reader_line_height">Interlignage</string>
+    <string name="reader_line_compact">Compact</string>
+    <string name="reader_line_normal">Normal</string>
+    <string name="reader_line_relaxed">Aéré</string>
+    <string name="reader_line_loose">Large</string>
+
+    <!-- Export -->
+    <string name="export_dialog_title">Exporter « %1$s »</string>
+    <string name="export_format_markdown">Markdown (.md)</string>
+    <string name="export_format_html">HTML (.html)</string>
+    <string name="export_format_pdf">PDF (impression système)</string>
 
     <!-- Shelves Screen -->
     <string name="shelves_title">Étagères</string>

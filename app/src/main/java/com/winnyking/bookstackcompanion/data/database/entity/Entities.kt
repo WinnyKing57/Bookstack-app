@@ -21,7 +21,8 @@ data class BookEntity(
     val description: String,
     val coverUrl: String?,
     val isDownloaded: Boolean,
-    val lastUpdated: String?
+    val lastUpdated: String?,
+    val lastSyncedAt: Long = 0L
 )
 
 @Entity(tableName = "shelves", primaryKeys = ["serverId", "id"])

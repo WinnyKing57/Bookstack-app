@@ -47,7 +47,14 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.Constraints
+import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.workDataOf
 import com.winnyking.bookstackcompanion.R
+import com.winnyking.bookstackcompanion.data.work.BookDownloadWorker
 import com.winnyking.bookstackcompanion.domain.model.Book
 import com.winnyking.bookstackcompanion.domain.model.Chapter
 import com.winnyking.bookstackcompanion.domain.model.Page
@@ -67,7 +74,8 @@ import javax.inject.Inject
 class BookDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val serverRepository: ServerRepository,
-    private val bookStackRepository: BookStackRepository
+    private val bookStackRepository: BookStackRepository,
+    private val workManager: WorkManager
 ) : ViewModel() {
 
     val bookId: Long = checkNotNull(savedStateHandle["bookId"])
@@ -90,6 +98,10 @@ class BookDetailViewModel @Inject constructor(
     private val _downloadProgress = MutableStateFlow(DownloadProgressState())
     val downloadProgress: StateFlow<DownloadProgressState> = _downloadProgress
 
+    init {
+        observeDownloads()
+    }
+
     fun loadBookDetails() {
         val server = selectedServer.value ?: return
         viewModelScope.launch {
@@ -111,13 +123,48 @@ class BookDetailViewModel @Inject constructor(
 
     fun downloadForOffline() {
         val server = selectedServer.value ?: return
+        val request = OneTimeWorkRequestBuilder<BookDownloadWorker>()
+            .setInputData(
+                workDataOf(
+                    BookDownloadWorker.KEY_SERVER_ID to server.id,
+                    BookDownloadWorker.KEY_BOOK_ID to bookId
+                )
+            )
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build()
+            )
+            .addTag(BookDownloadWorker.WORK_TAG)
+            .addTag("${BookDownloadWorker.WORK_TAG}_$bookId")
+            .build()
+        workManager.enqueueUniqueWork(
+            BookDownloadWorker.workName(bookId),
+            ExistingWorkPolicy.KEEP,
+            request
+        )
+    }
+
+    private fun observeDownloads() {
         viewModelScope.launch {
-            _downloadProgress.value = DownloadProgressState(isDownloading = true)
-            bookStackRepository.downloadBookForOffline(server.id, bookId) { completed, total ->
-                _downloadProgress.value = DownloadProgressState(isDownloading = true, completed = completed, total = total)
-            }
-            _downloadProgress.value = DownloadProgressState(isDownloading = false)
-            loadBookDetails()
+            workManager.getWorkInfosForUniqueWorkFlow(BookDownloadWorker.workName(bookId))
+                .collect { infos ->
+                    val active = infos.firstOrNull { !it.state.isFinished }
+                    if (active == null) {
+                        if (_downloadProgress.value.isDownloading) {
+                            _downloadProgress.value = DownloadProgressState(isDownloading = false)
+                            loadBookDetails()
+                        }
+                    } else {
+                        val completed = active.progress.getInt(BookDownloadWorker.KEY_COMPLETED, 0)
+                        val total = active.progress.getInt(BookDownloadWorker.KEY_TOTAL, 0)
+                        _downloadProgress.value = DownloadProgressState(
+                            isDownloading = true,
+                            completed = completed,
+                            total = total
+                        )
+                    }
+                }
         }
     }
 }
@@ -217,10 +264,24 @@ fun BookDetailScreen(
                                     )
                                 }
                             } else if (b.isDownloaded) {
-                                OutlinedButton(onClick = { viewModel.downloadForOffline() }, modifier = Modifier.fillMaxWidth()) {
-                                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(stringResource(R.string.book_detail_offline_available))
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    OutlinedButton(onClick = { viewModel.downloadForOffline() }, modifier = Modifier.fillMaxWidth()) {
+                                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(stringResource(R.string.book_detail_offline_available))
+                                    }
+                                    if (b.lastSyncedAt > 0) {
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = stringResource(
+                                                R.string.book_detail_last_sync,
+                                                java.text.DateFormat.getDateTimeInstance().format(java.util.Date(b.lastSyncedAt))
+                                            ),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(horizontal = 8.dp)
+                                        )
+                                    }
                                 }
                             } else {
                                 Button(onClick = { viewModel.downloadForOffline() }, modifier = Modifier.fillMaxWidth()) {

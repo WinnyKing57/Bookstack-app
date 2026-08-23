@@ -48,6 +48,9 @@ interface BookDao {
     @Query("UPDATE books SET isDownloaded = :isDownloaded WHERE serverId = :serverId AND id = :id")
     suspend fun updateBookDownloadState(serverId: String, id: Long, isDownloaded: Boolean)
 
+    @Query("UPDATE books SET lastSyncedAt = :timestamp WHERE serverId = :serverId AND id = :id")
+    suspend fun updateLastSyncedAt(serverId: String, id: Long, timestamp: Long)
+
     @Query("DELETE FROM books WHERE serverId = :serverId")
     suspend fun deleteBooksForServer(serverId: String)
 }

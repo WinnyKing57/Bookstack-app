@@ -17,14 +17,14 @@ val keystoreProperties = Properties().apply {
 
 android {
     namespace = "com.winnyking.bookstackcompanion"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.winnyking.bookstackcompanion"
         minSdk = 26
-        targetSdk = 34
-        versionCode = 4
-        versionName = "1.2.1"
+        targetSdk = 35
+        versionCode = 5
+        versionName = "1.3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -113,6 +113,7 @@ dependencies {
     implementation(libs.okhttp.logging)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.retrofit.kotlinx.serialization)
+    implementation(libs.jsoup)
 
     // Room
     implementation(libs.room.runtime)
@@ -122,6 +123,11 @@ dependencies {
     // DataStore & Security
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.security.crypto)
+
+    // WorkManager
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.hilt.work)
+    ksp(libs.androidx.hilt.compiler)
 
     // Image loading
     implementation(libs.coil.compose)

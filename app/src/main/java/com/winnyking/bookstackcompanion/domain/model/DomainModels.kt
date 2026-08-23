@@ -22,7 +22,8 @@ data class Book(
     val description: String = "",
     val coverUrl: String? = null,
     val isDownloaded: Boolean = false,
-    val lastUpdated: String? = null
+    val lastUpdated: String? = null,
+    val lastSyncedAt: Long = 0L
 )
 
 data class Shelf(

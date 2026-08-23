@@ -21,6 +21,19 @@ enum class FontSize {
     SMALL, NORMAL, LARGE
 }
 
+enum class ReaderFontFamily(val cssValue: String) {
+    SANS("sans-serif"),
+    SERIF("serif"),
+    MONOSPACE("monospace")
+}
+
+enum class LineHeight(val cssValue: String) {
+    COMPACT("1.4"),
+    NORMAL("1.6"),
+    RELAXED("1.8"),
+    LOOSE("2.0")
+}
+
 @Singleton
 class UserPreferencesManager @Inject constructor(
     @ApplicationContext private val context: Context
@@ -28,6 +41,8 @@ class UserPreferencesManager @Inject constructor(
     private object Keys {
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val FONT_SIZE = stringPreferencesKey("font_size")
+        val READER_FONT_FAMILY = stringPreferencesKey("reader_font_family")
+        val READER_LINE_HEIGHT = stringPreferencesKey("reader_line_height")
         val HISTORY_LIMIT = intPreferencesKey("history_limit")
     }
 
@@ -51,6 +66,23 @@ class UserPreferencesManager @Inject constructor(
         prefs[Keys.HISTORY_LIMIT] ?: DEFAULT_HISTORY_LIMIT
     }
 
+    val readerFontFamily: Flow<ReaderFontFamily> = context.dataStore.data.map { prefs ->
+        when (prefs[Keys.READER_FONT_FAMILY]) {
+            ReaderFontFamily.SERIF.name -> ReaderFontFamily.SERIF
+            ReaderFontFamily.MONOSPACE.name -> ReaderFontFamily.MONOSPACE
+            else -> ReaderFontFamily.SANS
+        }
+    }
+
+    val lineHeight: Flow<LineHeight> = context.dataStore.data.map { prefs ->
+        when (prefs[Keys.READER_LINE_HEIGHT]) {
+            LineHeight.COMPACT.name -> LineHeight.COMPACT
+            LineHeight.RELAXED.name -> LineHeight.RELAXED
+            LineHeight.LOOSE.name -> LineHeight.LOOSE
+            else -> LineHeight.NORMAL
+        }
+    }
+
     suspend fun setThemeMode(mode: ThemeMode) {
         context.dataStore.edit { prefs ->
             prefs[Keys.THEME_MODE] = mode.name
@@ -66,6 +98,18 @@ class UserPreferencesManager @Inject constructor(
     suspend fun setHistoryLimit(limit: Int) {
         context.dataStore.edit { prefs ->
             prefs[Keys.HISTORY_LIMIT] = limit
+        }
+    }
+
+    suspend fun setReaderFontFamily(family: ReaderFontFamily) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.READER_FONT_FAMILY] = family.name
+        }
+    }
+
+    suspend fun setLineHeight(lineHeight: LineHeight) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.READER_LINE_HEIGHT] = lineHeight.name
         }
     }
 

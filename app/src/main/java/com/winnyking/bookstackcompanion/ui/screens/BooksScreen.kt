@@ -53,7 +53,14 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.Constraints
+import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.workDataOf
 import com.winnyking.bookstackcompanion.R
+import com.winnyking.bookstackcompanion.data.work.BookDownloadWorker
 import com.winnyking.bookstackcompanion.domain.model.Book
 import com.winnyking.bookstackcompanion.domain.model.ServerConfig
 import com.winnyking.bookstackcompanion.domain.repository.BookStackRepository
@@ -83,7 +90,8 @@ data class DownloadProgressState(
 @HiltViewModel
 class BooksViewModel @Inject constructor(
     private val serverRepository: ServerRepository,
-    private val bookStackRepository: BookStackRepository
+    private val bookStackRepository: BookStackRepository,
+    private val workManager: WorkManager
 ) : ViewModel() {
 
     val selectedServer: StateFlow<ServerConfig?> = serverRepository.getSelectedServer()
@@ -101,6 +109,7 @@ class BooksViewModel @Inject constructor(
 
     init {
         refresh()
+        observeDownloads()
     }
 
     fun refresh() {
@@ -114,12 +123,45 @@ class BooksViewModel @Inject constructor(
 
     fun downloadBook(bookId: Long) {
         val server = selectedServer.value ?: return
+        val request = OneTimeWorkRequestBuilder<BookDownloadWorker>()
+            .setInputData(
+                workDataOf(
+                    BookDownloadWorker.KEY_SERVER_ID to server.id,
+                    BookDownloadWorker.KEY_BOOK_ID to bookId
+                )
+            )
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build()
+            )
+            .addTag(BookDownloadWorker.WORK_TAG)
+            .addTag("${BookDownloadWorker.WORK_TAG}_$bookId")
+            .build()
+        workManager.enqueueUniqueWork(
+            BookDownloadWorker.workName(bookId),
+            ExistingWorkPolicy.KEEP,
+            request
+        )
+    }
+
+    private fun observeDownloads() {
         viewModelScope.launch {
-            _downloadProgressMap.value = _downloadProgressMap.value + (bookId to DownloadProgressState(isDownloading = true))
-            bookStackRepository.downloadBookForOffline(server.id, bookId) { completed, total ->
-                _downloadProgressMap.value = _downloadProgressMap.value + (bookId to DownloadProgressState(isDownloading = true, completed = completed, total = total))
+            workManager.getWorkInfosByTagFlow(BookDownloadWorker.WORK_TAG).collect { infos ->
+                val map = buildMap {
+                    for (info in infos) {
+                        if (info.state.isFinished) continue
+                        val bookId = info.tags
+                            .firstOrNull { it.startsWith("${BookDownloadWorker.WORK_TAG}_") }
+                            ?.removePrefix("${BookDownloadWorker.WORK_TAG}_")
+                            ?.toLongOrNull() ?: continue
+                        val completed = info.progress.getInt(BookDownloadWorker.KEY_COMPLETED, 0)
+                        val total = info.progress.getInt(BookDownloadWorker.KEY_TOTAL, 0)
+                        put(bookId, DownloadProgressState(isDownloading = true, completed = completed, total = total))
+                    }
+                }
+                _downloadProgressMap.value = map
             }
-            _downloadProgressMap.value = _downloadProgressMap.value - bookId
         }
     }
 }

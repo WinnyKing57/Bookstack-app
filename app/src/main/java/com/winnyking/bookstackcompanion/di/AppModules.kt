@@ -38,6 +38,12 @@ object DatabaseModule {
         }
     }
 
+    private val MIGRATION_2_3 = object : Migration(2, 3) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE books ADD COLUMN lastSyncedAt INTEGER NOT NULL DEFAULT 0")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
@@ -46,7 +52,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "bookstack_companion.db"
         )
-            .addMigrations(MIGRATION_1_2)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
             .fallbackToDestructiveMigration()
             .build()
     }
@@ -76,6 +82,12 @@ object DatabaseModule {
     @Singleton
     fun provideConnectivityObserver(@ApplicationContext context: Context): com.winnyking.bookstackcompanion.data.network.ConnectivityObserver {
         return com.winnyking.bookstackcompanion.data.network.NetworkConnectivityObserver(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideWorkManager(@ApplicationContext context: Context): androidx.work.WorkManager {
+        return androidx.work.WorkManager.getInstance(context)
     }
 }
 

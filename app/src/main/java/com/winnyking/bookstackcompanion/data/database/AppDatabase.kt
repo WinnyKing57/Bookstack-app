@@ -27,7 +27,7 @@ import com.winnyking.bookstackcompanion.data.database.entity.ShelfEntity
         FavoriteEntity::class,
         HistoryEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

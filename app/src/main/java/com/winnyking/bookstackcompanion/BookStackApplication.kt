@@ -1,6 +1,8 @@
 package com.winnyking.bookstackcompanion
 
 import android.app.Application
+import androidx.hilt.work.HiltWorkerFactory
+import androidx.work.Configuration
 import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.util.DebugLogger
@@ -14,13 +16,21 @@ import okhttp3.OkHttpClient
 import javax.inject.Inject
 
 @HiltAndroidApp
-class BookStackApplication : Application(), ImageLoaderFactory {
+class BookStackApplication : Application(), Configuration.Provider, ImageLoaderFactory {
 
     @Inject
     lateinit var secureStorageManager: SecureStorageManager
 
     @Inject
     lateinit var serverRepository: ServerRepository
+
+    @Inject
+    lateinit var workerFactory: HiltWorkerFactory
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
+            .setWorkerFactory(workerFactory)
+            .build()
 
     @Volatile
     private var authHeader: String? = null

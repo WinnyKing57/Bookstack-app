@@ -2,9 +2,15 @@ package com.winnyking.bookstackcompanion.ui.screens
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.print.PrintAttributes
+import android.print.PrintManager
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -20,6 +26,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.NavigateBefore
@@ -27,13 +35,17 @@ import androidx.compose.material.icons.automirrored.filled.NavigateNext
 import androidx.compose.material.icons.automirrored.filled.Toc
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FormatSize
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Toc
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -55,6 +67,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -66,6 +79,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.winnyking.bookstackcompanion.R
 import com.winnyking.bookstackcompanion.data.datastore.FontSize
+import com.winnyking.bookstackcompanion.data.datastore.LineHeight
+import com.winnyking.bookstackcompanion.data.datastore.ReaderFontFamily
 import com.winnyking.bookstackcompanion.data.datastore.ThemeMode
 import com.winnyking.bookstackcompanion.data.datastore.UserPreferencesManager
 import com.winnyking.bookstackcompanion.domain.model.Page
@@ -75,6 +90,7 @@ import com.winnyking.bookstackcompanion.domain.repository.FavoriteRepository
 import com.winnyking.bookstackcompanion.domain.repository.HistoryRepository
 import com.winnyking.bookstackcompanion.domain.repository.ServerRepository
 import com.winnyking.bookstackcompanion.ui.components.OfflineBanner
+import com.winnyking.bookstackcompanion.util.HtmlToMarkdownConverter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -109,8 +125,8 @@ class PageReaderViewModel @Inject constructor(
     private val bookStackRepository: BookStackRepository,
     private val favoriteRepository: FavoriteRepository,
     private val historyRepository: HistoryRepository,
-    val userPreferencesManager: UserPreferencesManager
-) : ViewModel() {
+    val offlineImageCache: com.winnyking.bookstackcompanion.data.offline.OfflineImageCache,
+    val userPreferencesManager: UserPreferencesManager) : ViewModel() {
 
     private val initialPageId: Long = checkNotNull(savedStateHandle["pageId"])
 
@@ -125,6 +141,12 @@ class PageReaderViewModel @Inject constructor(
 
     val fontSize: StateFlow<FontSize> = userPreferencesManager.fontSize
         .stateIn(viewModelScope, SharingStarted.Lazily, FontSize.NORMAL)
+
+    val readerFontFamily: StateFlow<ReaderFontFamily> = userPreferencesManager.readerFontFamily
+        .stateIn(viewModelScope, SharingStarted.Lazily, ReaderFontFamily.SANS)
+
+    val lineHeight: StateFlow<LineHeight> = userPreferencesManager.lineHeight
+        .stateIn(viewModelScope, SharingStarted.Lazily, LineHeight.NORMAL)
 
     private val historyLimit: StateFlow<Int> = userPreferencesManager.historyLimit
         .stateIn(viewModelScope, SharingStarted.Lazily, UserPreferencesManager.DEFAULT_HISTORY_LIMIT)
@@ -160,7 +182,12 @@ class PageReaderViewModel @Inject constructor(
             if (result.isSuccess) {
                 val fetchedPage = result.getOrNull()
                 if (fetchedPage != null) {
-                    val processedHtml = processTocAndHtml(fetchedPage.htmlContent)
+                    val localImagesHtml = offlineImageCache.rewriteHtmlWithLocalImages(
+                        server.id,
+                        fetchedPage.bookId,
+                        fetchedPage.htmlContent
+                    )
+                    val processedHtml = processTocAndHtml(localImagesHtml)
                     _page.value = fetchedPage.copy(htmlContent = processedHtml)
                     _isOffline.value = fetchedPage.isCached && forceRemote
                     loadAdjacentPages(server.id, fetchedPage.bookId, targetPageId)
@@ -264,6 +291,18 @@ class PageReaderViewModel @Inject constructor(
             userPreferencesManager.setFontSize(nextSize)
         }
     }
+
+    fun setReaderFontFamily(family: ReaderFontFamily) {
+        viewModelScope.launch { userPreferencesManager.setReaderFontFamily(family) }
+    }
+
+    fun setLineHeight(lineHeight: LineHeight) {
+        viewModelScope.launch { userPreferencesManager.setLineHeight(lineHeight) }
+    }
+
+    fun setFontSize(size: FontSize) {
+        viewModelScope.launch { userPreferencesManager.setFontSize(size) }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -279,12 +318,17 @@ fun PageReaderScreen(
     val selectedServer by viewModel.selectedServer.collectAsState()
     val themeMode by viewModel.themeMode.collectAsState()
     val fontSize by viewModel.fontSize.collectAsState()
+    val readerFontFamily by viewModel.readerFontFamily.collectAsState()
+    val lineHeight by viewModel.lineHeight.collectAsState()
 
     val tocItems by viewModel.tocItems.collectAsState()
     val previousPage by viewModel.previousPage.collectAsState()
     val nextPage by viewModel.nextPage.collectAsState()
 
     var showTocSheet by remember { mutableStateOf(false) }
+    var showReaderSettingsSheet by remember { mutableStateOf(false) }
+    var showExportDialog by remember { mutableStateOf(false) }
+    var pendingExportFormat by remember { mutableStateOf<ExportFormat?>(null) }
     var readingProgress by remember { mutableFloatStateOf(0f) }
     var webViewInstance by remember { mutableStateOf<ObservableWebView?>(null) }
 
@@ -307,9 +351,9 @@ fun PageReaderScreen(
     }
 
     val htmlThemeCss = if (isDarkTheme) {
-        "body { background-color: #121212; color: #E0E0E0; $htmlFontCss font-family: sans-serif; padding: 16px; line-height: 1.6; } a { color: #80DEEA; } code, pre { background-color: #1E1E1E; padding: 4px; border-radius: 4px; }"
+        "body { background-color: #121212; color: #E0E0E0; $htmlFontCss font-family: ${readerFontFamily.cssValue}; padding: 16px; line-height: ${lineHeight.cssValue}; } a { color: #80DEEA; } code, pre { background-color: #1E1E1E; padding: 4px; border-radius: 4px; }"
     } else {
-        "body { background-color: #FFFFFF; color: #212121; $htmlFontCss font-family: sans-serif; padding: 16px; line-height: 1.6; } a { color: #0288D1; } code, pre { background-color: #F5F5F5; padding: 4px; border-radius: 4px; }"
+        "body { background-color: #FFFFFF; color: #212121; $htmlFontCss font-family: ${readerFontFamily.cssValue}; padding: 16px; line-height: ${lineHeight.cssValue}; } a { color: #0288D1; } code, pre { background-color: #F5F5F5; padding: 4px; border-radius: 4px; }"
     }
 
     val styledHtml = """
@@ -341,8 +385,11 @@ fun PageReaderScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { viewModel.cycleFontSize() }) {
-                        Icon(Icons.Default.FormatSize, contentDescription = stringResource(R.string.page_reader_font_size))
+                    IconButton(onClick = { showExportDialog = true }) {
+                        Icon(Icons.Default.FileDownload, contentDescription = stringResource(R.string.page_reader_export))
+                    }
+                    IconButton(onClick = { showReaderSettingsSheet = true }) {
+                        Icon(Icons.Default.Tune, contentDescription = stringResource(R.string.page_reader_settings))
                     }
                     IconButton(onClick = { viewModel.toggleFavorite() }) {
                         Icon(
@@ -458,7 +505,15 @@ fun PageReaderScreen(
                     factory = { context ->
                         @SuppressLint("SetJavaScriptEnabled")
                         val webView = ObservableWebView(context).apply {
-                            webViewClient = WebViewClient()
+                            webViewClient = object : WebViewClient() {
+                                override fun shouldInterceptRequest(
+                                    view: WebView?,
+                                    request: WebResourceRequest?
+                                ): WebResourceResponse? {
+                                    val url = request?.url ?: return null
+                                    return viewModel.offlineImageCache.interceptLocalImage(url)
+                                }
+                            }
                             settings.javaScriptEnabled = false
                             settings.loadWithOverviewMode = true
                             settings.useWideViewPort = true
@@ -563,5 +618,234 @@ fun PageReaderScreen(
                 }
             }
         }
+
+        if (showReaderSettingsSheet) {
+            ReaderSettingsSheet(
+                onDismiss = { showReaderSettingsSheet = false },
+                currentFontSize = fontSize,
+                currentFontFamily = readerFontFamily,
+                currentLineHeight = lineHeight,
+                onFontSizeChange = { viewModel.setFontSize(it) },
+                onFontFamilyChange = { viewModel.setReaderFontFamily(it) },
+                onLineHeightChange = { viewModel.setLineHeight(it) }
+            )
+        }
+
+        if (showExportDialog) {
+            ExportFormatDialog(
+                pageTitle = page?.name ?: "",
+                onDismiss = { showExportDialog = false },
+                onExportMarkdown = { pendingExportFormat = ExportFormat.MARKDOWN; showExportDialog = false },
+                onExportHtml = { pendingExportFormat = ExportFormat.HTML; showExportDialog = false },
+                onExportPdf = {
+                    showExportDialog = false
+                    webViewInstance?.let { webView ->
+                        val context = webView.context
+                        val printManager =
+                            context.getSystemService(Context.PRINT_SERVICE) as PrintManager
+                        printManager.print(
+                            page?.name ?: "page",
+                            webView.createPrintDocumentAdapter(page?.name ?: "page"),
+                            PrintAttributes.Builder().build()
+                        )
+                    }
+                }
+            )
+        }
+
+        pendingExportFormat?.let { format ->
+            val context = LocalContext.current
+            val fileName = (page?.name ?: "page").replace(Regex("[^\\w\\- ]"), "").trim()
+            val mimeType = if (format == ExportFormat.MARKDOWN) "text/markdown" else "text/html"
+            val extension = if (format == ExportFormat.MARKDOWN) "md" else "html"
+
+            val createDocumentLauncher = rememberLauncherForActivityResult(
+                ActivityResultContracts.CreateDocument(mimeType)
+            ) { uri ->
+                if (uri != null && page != null) {
+                    val content = when (format) {
+                        ExportFormat.MARKDOWN -> HtmlToMarkdownConverter.convert(page!!.htmlContent)
+                        ExportFormat.HTML -> buildStyledExportHtml(page!!, isDarkTheme)
+                    }
+                    context.contentResolver.openOutputStream(uri)?.use { out ->
+                        out.write(content.toByteArray(Charsets.UTF_8))
+                    }
+                }
+                pendingExportFormat = null
+            }
+
+            LaunchedEffect(format) {
+                createDocumentLauncher.launch("$fileName.$extension")
+            }
+        }
     }
+}
+
+private enum class ExportFormat { MARKDOWN, HTML }
+
+private fun buildStyledExportHtml(page: Page, isDarkTheme: Boolean): String {
+    val bg = if (isDarkTheme) "#121212" else "#FFFFFF"
+    val fg = if (isDarkTheme) "#E0E0E0" else "#212121"
+    return """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>${page.name}</title>
+        </head>
+        <body style="background-color: $bg; color: $fg;">
+            ${page.htmlContent}
+        </body>
+        </html>
+    """.trimIndent()
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ReaderSettingsSheet(
+    onDismiss: () -> Unit,
+    currentFontSize: FontSize,
+    currentFontFamily: ReaderFontFamily,
+    currentLineHeight: LineHeight,
+    onFontSizeChange: (FontSize) -> Unit,
+    onFontFamilyChange: (ReaderFontFamily) -> Unit,
+    onLineHeightChange: (LineHeight) -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.page_reader_settings),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+
+            Text(
+                text = stringResource(R.string.page_reader_font_size),
+                style = MaterialTheme.typography.titleMedium
+            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.horizontalScroll(rememberScrollState())
+            ) {
+                FontSize.entries.forEach { size ->
+                    FilterChip(
+                        selected = size == currentFontSize,
+                        onClick = { onFontSizeChange(size) },
+                        label = {
+                            Text(
+                                when (size) {
+                                    FontSize.SMALL -> "A⁻"
+                                    FontSize.NORMAL -> "A"
+                                    FontSize.LARGE -> "A⁺"
+                                }
+                            )
+                        }
+                    )
+                }
+            }
+
+            HorizontalDivider()
+
+            Text(
+                text = stringResource(R.string.reader_font_family),
+                style = MaterialTheme.typography.titleMedium
+            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.horizontalScroll(rememberScrollState())
+            ) {
+                ReaderFontFamily.entries.forEach { family ->
+                    FilterChip(
+                        selected = family == currentFontFamily,
+                        onClick = { onFontFamilyChange(family) },
+                        label = {
+                            Text(
+                                text = stringResource(
+                                    when (family) {
+                                        ReaderFontFamily.SANS -> R.string.reader_font_sans
+                                        ReaderFontFamily.SERIF -> R.string.reader_font_serif
+                                        ReaderFontFamily.MONOSPACE -> R.string.reader_font_mono
+                                    }
+                                ),
+                                fontFamily = when (family) {
+                                    ReaderFontFamily.SANS -> androidx.compose.ui.text.font.FontFamily.SansSerif
+                                    ReaderFontFamily.SERIF -> androidx.compose.ui.text.font.FontFamily.Serif
+                                    ReaderFontFamily.MONOSPACE -> androidx.compose.ui.text.font.FontFamily.Monospace
+                                }
+                            )
+                        }
+                    )
+                }
+            }
+
+            HorizontalDivider()
+
+            Text(
+                text = stringResource(R.string.reader_line_height),
+                style = MaterialTheme.typography.titleMedium
+            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.horizontalScroll(rememberScrollState())
+            ) {
+                LineHeight.entries.forEach { heightOption ->
+                    FilterChip(
+                        selected = heightOption == currentLineHeight,
+                        onClick = { onLineHeightChange(heightOption) },
+                        label = {
+                            Text(
+                                text = stringResource(
+                                    when (heightOption) {
+                                        LineHeight.COMPACT -> R.string.reader_line_compact
+                                        LineHeight.NORMAL -> R.string.reader_line_normal
+                                        LineHeight.RELAXED -> R.string.reader_line_relaxed
+                                        LineHeight.LOOSE -> R.string.reader_line_loose
+                                    }
+                                )
+                            )
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExportFormatDialog(
+    pageTitle: String,
+    onDismiss: () -> Unit,
+    onExportMarkdown: () -> Unit,
+    onExportHtml: () -> Unit,
+    onExportPdf: () -> Unit
+) {
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.export_dialog_title, pageTitle)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                TextButton(onClick = onExportMarkdown, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.export_format_markdown))
+                }
+                TextButton(onClick = onExportHtml, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.export_format_html))
+                }
+                TextButton(onClick = onExportPdf, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.export_format_pdf))
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.cancel)) }
+        }
+    )
 }
